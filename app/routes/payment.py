@@ -14,6 +14,7 @@ from app.services.payment_service import (
     load_department_prescriptions,
     update_reservation_with_payment_details,
 )
+from app.services.reception_service import lookup_reservation
 
 # ──────────────────────────────────────────────────────────
 #  Blueprint 인스턴트를 'payment_bp'라는 이름으로 노출
@@ -31,11 +32,11 @@ def payment():
     _func_args = locals()
     _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
     print(f"ENTERING: {_module_path}.payment(args={{_func_args}})")
-    department = session.get("department")
-    if not department:
-        return redirect(url_for("reception.reception"))
 
     if request.method == "POST":
+        # POST logic remains largely the same, ensure department is available if needed
+        # For POST, department is implicitly handled by what's in session from GET or load_prescriptions
+        patient_id = request.form.get("patient_id", "").strip() # Should come from session or a secure source ideally
         patient_id = request.form.get("patient_id", "").strip() # Should come from session or a secure source ideally
 
         amount_raw = request.form.get("amount", "0").replace(",", "")
@@ -87,7 +88,25 @@ def payment():
         return redirect(url_for("payment.done", pay_id=pay_id))
 
     # GET → 결제 입력 폼
-    return render_template("payment.html", step="initial_payment", department=department)
+    else: # GET request
+        patient_rrn = session.get("patient_rrn")
+        patient_name = session.get("patient_name")
+
+        if not patient_rrn or not patient_name:
+            # Redirect to reception if essential session info is missing
+            return redirect(url_for("reception.reception", error="session_incomplete"))
+
+        reservation_details = lookup_reservation(name=patient_name, rrn=patient_rrn)
+        if not reservation_details:
+            # Redirect or show error if no reservation found for user
+            return redirect(url_for("reception.reception", error="no_reservation_found"))
+
+        department = reservation_details.get("department")
+        if not department:
+            # Redirect or show error if department is missing in reservation
+            return redirect(url_for("reception.reception", error="department_missing_in_reservation"))
+
+        return render_template("payment.html", step="initial_payment", department=department)
 
 
 @payment_bp.route("/load_prescriptions", methods=["GET"])
@@ -95,9 +114,21 @@ def load_prescriptions():
     _func_args = locals()
     _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
     print(f"ENTERING: {_module_path}.load_prescriptions(args={{_func_args}})")
-    department = session.get("department")
-    if not department:
-        return jsonify({"error": "Department not selected", "prescriptions": [], "total_fee": 0}), 400
+
+    patient_rrn = session.get("patient_rrn")
+    patient_name = session.get("patient_name")
+
+    if not patient_rrn or not patient_name:
+        return jsonify({"error": "User session not found or incomplete. Please go through reception.", "prescriptions": [], "total_fee": 0}), 400
+
+    reservation_details = lookup_reservation(name=patient_name, rrn=patient_rrn)
+
+    if not reservation_details:
+        return jsonify({"error": "Reservation details not found for the current user.", "prescriptions": [], "total_fee": 0}), 400
+
+    department = reservation_details.get("department")
+    if not department: # Check if department is empty or None
+        return jsonify({"error": "Department not found in reservation details. Please complete reception.", "prescriptions": [], "total_fee": 0}), 400
 
     # Call the service function to load prescriptions
     result = load_department_prescriptions(department)
