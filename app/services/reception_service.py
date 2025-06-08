@@ -96,9 +96,11 @@ def new_ticket(department: str) -> str:
     return ticket_num
 
 
-def update_reservation_status(patient_rrn: str, new_status: str) -> bool:
+def update_reservation_status(patient_rrn: str, new_status: str, **kwargs) -> bool:
     """
     Updates the status of a patient's reservation in reservations.csv.
+    Can also update other reservation fields (e.g., 'department', 'ticket_number', 'name')
+    by passing them as keyword arguments. All values will be stored as strings.
     """
     _func_args = locals()
     _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
@@ -124,8 +126,18 @@ def update_reservation_status(patient_rrn: str, new_status: str) -> bool:
 
         for i, row in enumerate(rows):
             if row.get('rrn') == patient_rrn:
-                rows[i]['status'] = new_status
+                rows[i]['status'] = str(new_status) # Ensure status is also a string
+
+                # Update other fields from kwargs if they are valid column names
+                for key, value in kwargs.items():
+                    if key in original_fieldnames: # Ensure the key is a valid column
+                        rows[i][key] = str(value) # Store all CSV data as strings
+                    else:
+                        # Optional: Log a warning if a kwarg key is not a valid fieldname
+                        print(f"Warning: In update_reservation_status, '{key}' is not a valid field in reservations.csv. Cannot update.")
+
                 updated = True
+                # RRN should be unique, so we can break after finding and updating.
                 break
 
         if updated:
