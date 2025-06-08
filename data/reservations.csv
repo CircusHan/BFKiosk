@@ -1,4 +1,4 @@
-name,rrn,time,department,location,doctor,status,transcription,amount
+name,rrn,time,department,location,doctor,status,prescription_names,total_fee
 류열다,970405-1660660,2025-06-19 08:20,소화기내과,2층 A-4,윤교경 전문의,Pending,,0
 황용용,810206-2331088,2025-06-25 05:50,비뇨의학과,2층 C-4,강수한 전문의,Pending,,0
 이린제,720528-1034254,2025-06-12 05:10,치과,3층 C-4,임범린 전문의,Pending,,0

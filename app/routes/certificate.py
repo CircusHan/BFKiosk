@@ -47,33 +47,30 @@ def generate_prescription_pdf():
     if not department:
         return redirect(url_for("reception.reception", error="department_info_missing"))
 
-    last_prescriptions_from_session = session.get("last_prescriptions")
-    last_total_fee_from_session = session.get("last_total_fee")
+    # last_prescriptions_from_session = session.get("last_prescriptions") # Removed
+    # last_total_fee_from_session = session.get("last_total_fee") # Removed
 
-    # The service function get_prescription_data_for_pdf now expects last_prescriptions and last_total_fee
-    # It handles the logic of loading from CSV if these are not available (though current service doesn't do that, it expects them)
-    # For this refactor, we assume that if they are not in session, it's an error or indicates prior step not completed.
-    if last_prescriptions_from_session is None or last_total_fee_from_session is None:
-        # This implies the payment/prescription selection step was skipped or data is missing.
-        # Redirect to a relevant page, perhaps payment or reception with an error.
-        # The original code tried _load_prescription_data as a fallback,
-        # but the new service expects explicit prescription lists.
-        # For now, redirecting to payment page, which should ideally handle this.
-        return redirect(url_for("payment.payment", error="prescription_data_missing_from_session"))
+    # The service function get_prescription_data_for_pdf now expects patient_rrn and department.
+    # It will fetch prescription details from reservations.csv.
+    # if last_prescriptions_from_session is None or last_total_fee_from_session is None: # Removed block
+    #     return redirect(url_for("payment.payment", error="prescription_data_missing_from_session"))
 
     prescription_details = get_prescription_data_for_pdf(
-        department=department,
-        last_prescriptions=last_prescriptions_from_session,
-        last_total_fee=last_total_fee_from_session
+        patient_rrn=patient_rrn, # Changed
+        department=department  # Changed
     )
 
     if not prescription_details:
-        # This case handles if get_prescription_data_for_pdf returns None (e.g., CSV error in service)
-        return redirect(url_for("payment.payment", error="failed_to_load_prescription_details"))
+        # This case handles if get_prescription_data_for_pdf returns None
+        # (e.g., patient not in reservations.csv, CSV error in service, or no prescription files)
+        # Redirecting to reception or a generic error page might be more appropriate
+        # than payment, as payment data might not be the issue anymore.
+        # For now, keeping the error message generic.
+        return render_template("error.html", message="진료확인서 발급에 필요한 처방 상세 정보를 불러오지 못했습니다. 해당 환자의 예약 정보 또는 처방전 데이터 파일을 확인해주세요."), 500
+        # Previous redirect: url_for("payment.payment", error="failed_to_load_prescription_details")
 
-    # Clear the stored values after use, if this is the desired behavior
-    session.pop("last_prescriptions", None)
-    session.pop("last_total_fee", None)
+    # session.pop("last_prescriptions", None) # Removed
+    # session.pop("last_total_fee", None) # Removed
 
     try:
         pdf_bytes, filename = prepare_prescription_pdf(
