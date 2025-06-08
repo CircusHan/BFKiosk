@@ -91,6 +91,8 @@ def generate_prescription_pdf():
             headers={'Content-Disposition': f'inline;filename={filename}'}
         )
     # Handle error cases based on status_code from get_prescription_data_for_pdf
+    elif status_code == "NEEDS_RECEPTION_COMPLETION": # New condition
+        return render_template("error.html", message=result_payload), 400
     elif status_code in ["NEEDS_PAYMENT", "ZERO_FEE_PAID"]:
         # These are client-side correctable or informational errors
         return render_template("error.html", message=result_payload), 400

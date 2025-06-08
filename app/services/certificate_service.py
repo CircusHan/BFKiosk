@@ -44,10 +44,9 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
     if not patient_reservation_data:
         return ("NOT_FOUND", "해당 환자의 예약 정보를 찾을 수 없습니다.")
 
-    # Extract data and perform checks
-    status = patient_reservation_data.get("status")
-    total_fee_str = patient_reservation_data.get("total_fee", "0")
-    prescription_names_str = patient_reservation_data.get("prescription_names", "")
+    # Extract data and perform refined status/fee checks
+    actual_status = patient_reservation_data.get("status")
+    total_fee_str = patient_reservation_data.get("total_fee", "0") # Keep this for fee calculation
 
     try:
         fetched_total_fee = int(total_fee_str)
@@ -55,29 +54,33 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
         # print(f"Warning: Invalid total_fee format '{total_fee_str}' for patient {patient_rrn}. Defaulting to 0.") # Server-side log
         fetched_total_fee = 0 # Default to 0 if conversion fails
 
-    if status != 'Paid':
-        return ("NEEDS_PAYMENT", f"수납을 먼저 완료해주세요. 현재 상태: {status if status else '알 수 없음'}")
+    if actual_status == 'Pending':
+        return ("NEEDS_RECEPTION_COMPLETION", f"접수를 먼저 완료해주세요. 현재 상태: {actual_status}")
+    elif actual_status != 'Paid': # Covers 'Registered' and any other non-'Paid', non-'Pending' status
+        return ("NEEDS_PAYMENT", f"수납을 먼저 완료해주세요. 현재 상태: {actual_status if actual_status else '알 수 없음'}")
+    else:  # Status is 'Paid'
+        if fetched_total_fee <= 0:
+            return ("ZERO_FEE_PAID", "결제된 금액이 0원 이하입니다. 유효한 처방전 발급이 불가능합니다. 관리자에게 문의하세요.")
+        else:
+            # This is the "OK" case, proceed to prepare and return prescription data
+            prescription_names_str = patient_reservation_data.get("prescription_names", "")
+            if prescription_names_str:
+                parsed_prescription_names = [name.strip() for name in prescription_names_str.split(',') if name.strip()]
+            else:
+                parsed_prescription_names = []
 
-    if fetched_total_fee <= 0: # Assuming fee must be greater than 0 for a valid prescription
-        return ("ZERO_FEE_PAID", "결제된 금액이 0원 이하입니다. 유효한 처방전 발급이 불가능합니다. 관리자에게 문의하세요.")
+            selected_prescriptions = [{"name": med_name} for med_name in parsed_prescription_names]
 
-    # All checks passed, prepare data for "OK" case
-    if prescription_names_str:
-        parsed_prescription_names = [name.strip() for name in prescription_names_str.split(',') if name.strip()]
-    else:
-        parsed_prescription_names = []
-
-    selected_prescriptions = [{"name": med_name} for med_name in parsed_prescription_names]
-
-    prescription_data_template = {
-        "doctor_name": "김의사", # Placeholder
-        "doctor_license_number": f"{random.randint(1000, 9999)}", # Placeholder
-        "department": department, # Passed as argument
-        "prescriptions": selected_prescriptions, # Simplified list of names
-        "total_fee": fetched_total_fee,
-        "issue_date": datetime.now().strftime("%Y-%m-%d")
-    }
-    return ("OK", prescription_data_template)
+            # department argument is used here
+            prescription_data_template = {
+                "doctor_name": "김의사",
+                "doctor_license_number": f"{random.randint(1000, 9999)}",
+                "department": department,
+                "prescriptions": selected_prescriptions,
+                "total_fee": fetched_total_fee,
+                "issue_date": datetime.now().strftime("%Y-%m-%d")
+            }
+            return ("OK", prescription_data_template)
 
 
 def prepare_prescription_pdf(patient_name: str, patient_rrn: str, department: str, prescription_details: dict):
@@ -95,7 +98,7 @@ def prepare_prescription_pdf(patient_name: str, patient_rrn: str, department: st
     prescription_data["patient_name"] = patient_name
     prescription_data["patient_rrn"] = patient_rrn
 
-    pdf_bytes = create_prescription_pdf_bytes(prescription_data)
+    pdf_bytes = create_prescription_pdf_bytes(**prescription_data)
     filename = f"prescription_{patient_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     return pdf_bytes, filename
 
