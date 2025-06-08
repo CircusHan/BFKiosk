@@ -153,6 +153,7 @@ def load_department_prescriptions(department: str) -> dict:
 
         selected_prescriptions_objects = [] # Initialize to handle num_to_select = 0
         if num_to_select > 0 :
+             random.seed(42)
              selected_prescriptions_objects = random.sample(department_prescriptions_details, num_to_select)
 
         total_fee = sum(item["fee"] for item in selected_prescriptions_objects)
