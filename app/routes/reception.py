@@ -36,9 +36,14 @@ def reception():
             session['patient_rrn'] = scan_result["rrn"]
 
             if scan_result["reservation_details"]:
-                update_reservation_status(scan_result["rrn"], 'Registered') # <--- ADDED THIS
+                update_reservation_status(scan_result["rrn"], 'Registered')
+                details = scan_result["reservation_details"]
                 return render_template("reception.html", step="reserved",
-                                       **scan_result["reservation_details"])
+                                   name=details.get("name"),
+                                   department=details.get("department"),
+                                   time=details.get("time"),
+                                   location=details.get("location"),
+                                   doctor=details.get("doctor"))
             else:
                 # If no reservation, they proceed to symptom choice. Status will be updated there.
                 return render_template("reception.html", step="symptom",
@@ -59,9 +64,14 @@ def reception():
             reservation_details = handle_manual_action(name, rrn) # Service returns dict or None
 
             if reservation_details:
-                update_reservation_status(rrn, 'Registered') # <--- ADDED THIS
+                update_reservation_status(rrn, 'Registered')
+                # Note: reservation_details is already the correct dictionary here
                 return render_template("reception.html", step="reserved",
-                                       **reservation_details)
+                                   name=reservation_details.get("name"),
+                                   department=reservation_details.get("department"),
+                                   time=reservation_details.get("time"),
+                                   location=reservation_details.get("location"),
+                                   doctor=reservation_details.get("doctor"))
             else:
                 # If no reservation, they proceed to symptom choice. Status will be updated there.
                 return render_template("reception.html", step="symptom",
