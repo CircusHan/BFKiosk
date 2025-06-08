@@ -1,0 +1,6 @@
+name,code,unit_dose,daily_frequency,total_days
+비타민D 처방,VITD001,1정,1회,30일
+철분제 처방,IRON002,1캡슐,1회,60일
+위장약 처방,STOM003,1포,3회,7일
+기관지확장제 처방,BRONCH01,2퍼프,4회,14일
+항히스타민제 처방,ANTIHI01,1정,1회,10일
