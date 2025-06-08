@@ -91,7 +91,14 @@ def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescri
         return pdf_bytes.encode("latin-1")
     return bytes(pdf_bytes)
 
-def create_confirmation_pdf_bytes(patient_name, patient_rrn, disease_name):
+def create_confirmation_pdf_bytes(
+    patient_name,
+    patient_rrn,
+    disease_name,
+    date_of_diagnosis,
+    date_of_issue,
+):
+    """Create a medical confirmation PDF and return its bytes."""
     pdf = FPDF()
     pdf.add_page()
     _add_korean_font(pdf)
@@ -103,20 +110,19 @@ def create_confirmation_pdf_bytes(patient_name, patient_rrn, disease_name):
 
     # Information
     pdf.set_font_size(12)
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    pdf.cell(0, 7, txt=f"발행일: {current_date}", ln=True, align="R")
+    pdf.cell(0, 7, txt=f"발행일: {date_of_issue}", ln=True, align="R")
     pdf.cell(0, 7, txt="기관명: 중앙대 보건소", ln=True)
     pdf.cell(0, 7, txt=f"환자 성명: {patient_name}", ln=True)
     pdf.cell(0, 7, txt=f"주민등록번호: {patient_rrn}", ln=True)
-    pdf.cell(0, 7, txt=f"진단명 (병명): {disease_name}", ln=True) # Department used as disease name
+    pdf.cell(0, 7, txt=f"진단명 (병명): {disease_name}", ln=True)
     pdf.ln(10)
 
     # Confirmation Statement
     # Using a more detailed confirmation text
     confirmation_text = (
-        f"상기 환자는 위와 같은 진단명으로 {current_date} 본원에서 진료를 받았음을 확인합니다.\n\n"
+        f"상기 환자는 위와 같은 진단명으로 {date_of_diagnosis} 본원에서 진료를 받았음을 확인합니다.\n\n"
         "This is to confirm that the patient named above received medical treatment at our clinic "
-        f"on {current_date} for the diagnosis mentioned.\n\n"
+        f"on {date_of_diagnosis} for the diagnosis mentioned.\n\n"
         "진료의견: 안정가료 및 처방약 복용 요망.\n"
         "(Medical Opinion: Rest and medication as prescribed.)"
     )
