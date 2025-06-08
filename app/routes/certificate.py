@@ -5,6 +5,7 @@ import sys # Added for logging
 from flask import (
     Blueprint, render_template, session, redirect, url_for, Response
 )
+from werkzeug.http import dump_options_header # Added for Content-Disposition
 # Removed: request, jsonify as they are not used after refactoring
 # Removed: os, csv, random as their functionality is moved to service
 
@@ -88,7 +89,7 @@ def generate_prescription_pdf():
         return Response(
             pdf_bytes,
             mimetype='application/pdf',
-            headers={'Content-Disposition': f'inline;filename={filename}'}
+            headers={'Content-Disposition': dump_options_header('inline', {'filename': filename})}
         )
     # Handle error cases based on status_code from get_prescription_data_for_pdf
     elif status_code == "NEEDS_RECEPTION_COMPLETION": # New condition
@@ -142,5 +143,5 @@ def generate_confirmation_pdf():
     return Response(
         pdf_bytes, # pdf_bytes is already BytesIO object from service
         mimetype='application/pdf',
-        headers={'Content-Disposition': f'inline;filename={filename}'}
+        headers={'Content-Disposition': dump_options_header('inline', {'filename': filename})}
     )
