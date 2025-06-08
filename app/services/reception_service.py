@@ -47,7 +47,7 @@ def fake_scan_rrn() -> tuple[str, str]:
             return "김민준", "900101-1234567"
 
         random_patient = random.choice(reservations)
-        return random_patient["Name"], random_patient["RRN"]
+        return random_patient["name"], random_patient["rrn"]
     except FileNotFoundError:
         # Fallback if CSV is not found
         print(f"Warning: {RESV_CSV} not found. Using default fake scan data.")
