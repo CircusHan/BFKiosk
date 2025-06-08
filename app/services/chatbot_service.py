@@ -10,7 +10,7 @@ from app.services.reception_service import (
     SYMPTOMS,
     SYM_TO_DEPT,
     handle_choose_symptom_action,
-    add_new_patient_reception,
+    # add_new_patient_reception, # Removed as per new logic
     new_ticket, # Added
     update_reservation_status, # Added
     # fake_scan_rrn # Not using fake_scan_rrn in this path for now
@@ -243,47 +243,8 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
         else:
             # Catch any other non-handled statuses
             return {"reply": f"{name}님의 예약 상태는 '{status}'입니다. 현재 새로 접수할 수 없거나 다른 조치가 필요합니다. 데스크에 문의해주세요."}
-
-    # No existing reservation, proceed with new registration
-    # symptom_param is from the initial parameters.get("symptom")
-    if not symptom_param:
-        available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
-        # TODO: Consider a way to present these as options if UI supports it.
-        # For now, sending as text. Gemini might be prompted to list these.
-        return {"reply": f"어떤 증상으로 방문하셨나요? 다음 중에서 선택해주세요: {available_symptoms_text} (예: 발열, 기침 등)"}
-
-    # Symptom is provided, try to map it to a valid key
-    symptom_key = None
-    if symptom_param in SYM_TO_DEPT: # If Gemini provides the key directly
-        symptom_key = symptom_param
-    else: # Try to find the key from the display name
-        for key, display_name in SYMPTOMS:
-            if symptom_param == display_name:
-                symptom_key = key
-                break
-
-    if not symptom_key:
-        available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
-        return {"reply": f"선택하신 '{symptom_param}' 증상을 찾을 수 없습니다. 다음 증상 중에서 선택해주세요: {available_symptoms_text}"}
-
-    # Valid symptom key found, proceed to get ticket and department
-    try:
-        symptom_action_result = handle_choose_symptom_action(symptom_key)
-        department = symptom_action_result["department"]
-        ticket_number = symptom_action_result["ticket"]
-
-        # Add new patient reception
-        # Assumes add_new_patient_reception is available and works
-        success = add_new_patient_reception(name, rrn, department, ticket_number, initial_status="Registered")
-
-        if success:
-            return {"reply": f"{name}님, {department}으로 접수되셨습니다. 대기번호는 {ticket_number}번 입니다."}
-        else:
-            # This indicates an internal error (e.g., CSV write failure)
-            return {"error": "접수 처리 중 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "status_code": 500}
-    except Exception as e:
-        print(f"Error during new reception processing for {name} ({rrn}): {e}")
-        return {"error": "접수 처리 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
+    else: # No existing reservation, patient not found in reservations.csv
+        return {"reply": f"죄송합니다, {name}님의 정보를 시스템에서 찾을 수 없습니다. 데스크에 문의하여 등록을 먼저 진행해주시기 바랍니다."}
 
 def handle_payment_request(parameters: dict, user_query: str) -> dict:
     _func_args = locals()

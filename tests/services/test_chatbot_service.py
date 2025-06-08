@@ -348,23 +348,20 @@ class TestChatbotServiceHandlers(unittest.TestCase):
         self.assertEqual(result["status_code"], 500)
 
     # --- Tests for handle_reception_request ---
-    @patch('app.services.chatbot_service.reception_service.add_new_patient_reception')
-    @patch('app.services.chatbot_service.reception_service.handle_choose_symptom_action')
     @patch('app.services.chatbot_service.reception_service.lookup_reservation')
-    def test_handle_reception_new_patient_success(self, mock_lookup_reservation, mock_choose_symptom, mock_add_patient):
-        mock_lookup_reservation.return_value = None # New patient
-        mock_choose_symptom.return_value = {"department": "내과", "ticket": "N001"}
-        mock_add_patient.return_value = True # Successfully added
+    def test_handle_reception_patient_not_found(self, mock_lookup_reservation):
+        test_name = "신규고객"
+        test_rrn = "000000-0000000"
+        mock_lookup_reservation.return_value = None # Patient not found
 
-        params = {"name": "홍길동", "rrn": "123456-1234567", "symptom": "fever"} # Assuming 'fever' is a valid key
+        params = {"name": test_name, "rrn": test_rrn, "symptom": "fever"} # Symptom might or might not be provided
 
         # Directly test the handler function
-        result = handle_reception_request(params, "some query")
+        result = handle_reception_request(params, "some query for not found patient")
 
-        self.assertEqual(result, {"reply": "홍길동님, 내과으로 접수되셨습니다. 대기번호는 N001번 입니다."})
-        mock_lookup_reservation.assert_called_once_with("홍길동", "123456-1234567")
-        mock_choose_symptom.assert_called_once_with("fever") # Assuming symptom_param is directly used as key
-        mock_add_patient.assert_called_once_with("홍길동", "123456-1234567", "내과", "N001", initial_status="Registered")
+        expected_reply = f"죄송합니다, {test_name}님의 정보를 시스템에서 찾을 수 없습니다. 데스크에 문의하여 등록을 먼저 진행해주시기 바랍니다."
+        self.assertEqual(result, {"reply": expected_reply})
+        mock_lookup_reservation.assert_called_once_with(test_name, test_rrn)
 
     @patch('app.services.chatbot_service.reception_service.lookup_reservation')
     def test_handle_reception_existing_patient_registered(self, mock_lookup_reservation):
