@@ -32,7 +32,7 @@ def reception():
 
             if scan_result["reservation_details"]:
                 return render_template("reception.html", step="reserved",
-                                       name=scan_result["name"], **scan_result["reservation_details"])
+                                       **scan_result["reservation_details"])
             else:
                 return render_template("reception.html", step="symptom",
                                        name=scan_result["name"], rrn=scan_result["rrn"], symptoms=SYMPTOMS)
@@ -53,7 +53,7 @@ def reception():
 
             if reservation_details:
                 return render_template("reception.html", step="reserved",
-                                       name=name, **reservation_details)
+                                       **reservation_details)
             else:
                 return render_template("reception.html", step="symptom",
                                        name=name, rrn=rrn, symptoms=SYMPTOMS)
