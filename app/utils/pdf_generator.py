@@ -37,7 +37,7 @@ def _add_korean_font(pdf_instance):
         )
     )
 
-def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescriptions, total_fee):
+def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescriptions, total_fee, doctor_name, issue_date):
     pdf = FPDF()
     pdf.add_page()
     _add_korean_font(pdf)
@@ -49,8 +49,8 @@ def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescri
 
     # Header Information
     pdf.set_font_size(12)
-    current_date = datetime.now().strftime("%Y-%m-%d")
-    pdf.cell(0, 7, txt=f"발행일: {current_date}", ln=True, align="R")
+    # current_date = datetime.now().strftime("%Y-%m-%d") # Removed
+    pdf.cell(0, 7, txt=f"발행일: {issue_date}", ln=True, align="R") # Use issue_date parameter
     pdf.cell(0, 7, txt="기관명: 중앙대 보건소", ln=True)
     pdf.cell(0, 7, txt=f"환자 성명: {patient_name}", ln=True)
     pdf.cell(0, 7, txt=f"주민등록번호: {patient_rrn}", ln=True)
@@ -81,7 +81,7 @@ def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescri
 
     # Footer/Notes
     pdf.set_font_size(10)
-    pdf.multi_cell(0, 7, txt="위와 같이 처방합니다.\n\n\n의사명: 김중앙 (서명/날인)")
+    pdf.multi_cell(0, 7, txt=f"위와 같이 처방합니다.\n\n\n의사명: {doctor_name} (서명/날인)") # Use doctor_name parameter
     pdf.ln(5)
     pdf.cell(0, 7, txt="* 이 처방전은 발행일로부터 7일간 유효합니다.", ln=True)
 
