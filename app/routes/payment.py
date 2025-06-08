@@ -11,6 +11,7 @@ from app.services.payment_service import (
     process_new_payment,
     get_payment_details,
     load_department_prescriptions,
+    update_reservation_with_payment_details,
 )
 
 # ──────────────────────────────────────────────────────────
@@ -56,6 +57,27 @@ def payment():
             amount=amount,
             method=method
         )
+
+        # Update reservation with prescription details
+        patient_rrn_for_reservation_update = session.get("patient_rrn")
+        # 'last_prescriptions' should hold the list of names from load_prescriptions route
+        prescription_names_to_save = session.get("last_prescriptions")
+        # 'last_total_fee' should hold the total fee from load_prescriptions route
+        total_fee_to_save = session.get("last_total_fee")
+
+        if patient_rrn_for_reservation_update and \
+           prescription_names_to_save is not None and \
+           total_fee_to_save is not None:
+            # Optionally, log the result or handle failure
+            update_reservation_with_payment_details(
+                patient_rrn_for_reservation_update,
+                prescription_names_to_save,
+                total_fee_to_save
+            )
+        # else:
+            # Optionally, log that some data was missing for reservation update
+            # For example: print("DEBUG: Missing data for reservation update in payment POST")
+
 
         # 완료 페이지로 리다이렉트
         return redirect(url_for("payment.done", pay_id=pay_id))

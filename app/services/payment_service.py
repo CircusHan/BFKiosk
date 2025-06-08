@@ -41,6 +41,67 @@ def get_payment_details(payment_id: str) -> dict | None:
     return None
 
 
+def update_reservation_with_payment_details(patient_rrn: str, prescription_names: list, total_fee: int) -> bool:
+    """
+    Updates a reservation in reservations.csv with prescription names and total fee.
+    """
+    RESERVATIONS_CSV = os.path.join(BASE_DIR, "data", "reservations.csv")
+
+    if not os.path.exists(RESERVATIONS_CSV):
+        # Consider logging this error: print(f"Error: {RESERVATIONS_CSV} not found.")
+        return False
+
+    rows = []
+    original_fieldnames = None # To store the original fieldnames
+
+    try:
+        with open(RESERVATIONS_CSV, mode='r', newline='', encoding='utf-8-sig') as csvfile:
+            reader = csv.DictReader(csvfile)
+            original_fieldnames = reader.fieldnames
+            if not original_fieldnames or not all(field in original_fieldnames for field in ['rrn', 'prescription_names', 'total_fee']):
+                # Log error: print("Error: CSV headers are missing or incorrect.")
+                return False
+            rows.extend(list(reader)) # Read all rows into memory
+
+        updated = False
+        # Find and update the specific row
+        for row_idx, row in enumerate(rows):
+            if row.get('rrn') == patient_rrn:
+                # Convert prescription_names list to a comma-separated string
+                if prescription_names and isinstance(prescription_names, list):
+                    rows[row_idx]['prescription_names'] = ",".join(prescription_names)
+                else:
+                    rows[row_idx]['prescription_names'] = "" # Empty string if list is empty or None
+
+                rows[row_idx]['total_fee'] = str(total_fee) # Store total_fee as string
+                updated = True
+                break
+
+        if updated:
+            # Write all rows back (including the updated one)
+            with open(RESERVATIONS_CSV, mode='w', newline='', encoding='utf-8') as csvfile:
+                if not original_fieldnames:
+                     # This should ideally not be reached if reading was successful
+                     # print("Error: Original fieldnames not available for writing.")
+                     return False
+
+                writer = csv.DictWriter(csvfile, fieldnames=original_fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            return True
+        else:
+            # Patient RRN not found
+            # print(f"Info: Patient RRN {patient_rrn} not found in reservations.")
+            return False
+
+    except FileNotFoundError:
+        # print(f"Error: File {RESERVATIONS_CSV} not found during update.")
+        return False
+    except Exception as e:
+        # print(f"Error updating reservation for RRN {patient_rrn}: {e}")
+        return False
+
+
 def load_department_prescriptions(department: str) -> dict:
     if not os.path.exists(TREATMENT_FEES_CSV):
         return {"error": f"Data file not found: {TREATMENT_FEES_CSV}", "prescriptions": [], "total_fee": 0}
