@@ -16,7 +16,6 @@ html, body {
   "Helvetica Neue", Arial, "Noto Sans KR", "Apple SD Gothic Neo",
   "Malgun Gothic", sans-serif;
   background: #f4f7fa url("../images/CNU-health-background.webp") no-repeat center center fixed;
-  background-size: cover;
   color: #222;
 }
 
