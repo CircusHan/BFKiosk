@@ -1,7 +1,7 @@
 import csv
-import csv
 import os
 import random
+import sys # Added for logging
 from datetime import datetime, timedelta # Moved timedelta here
 from io import BytesIO
 
@@ -13,6 +13,9 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
     Loads and prepares prescription data for PDF generation by fetching
     details from reservations.csv and then prescription item details.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.get_prescription_data_for_pdf(args={{_func_args}})")
     try:
         # Determine project base directory
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -129,6 +132,9 @@ def prepare_prescription_pdf(patient_name: str, patient_rrn: str, department: st
     """
     Prepares the prescription PDF using the provided data.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.prepare_prescription_pdf(args={{_func_args}})")
     if not prescription_details:
         return None, None
 
@@ -146,6 +152,9 @@ def prepare_medical_confirmation_pdf(patient_name: str, patient_rrn: str, diseas
     """
     Prepares the medical confirmation PDF.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.prepare_medical_confirmation_pdf(args={{_func_args}})")
     # For confirmation, we might need a diagnosis date.
     # This could come from session or be fixed for simplicity here.
     date_of_diagnosis = (datetime.now() - timedelta(days=random.randint(1, 30))).strftime("%Y-%m-%d") # Simulate a past diagnosis

@@ -1,6 +1,7 @@
 import os
 import base64
 import google.generativeai as genai
+import sys # Added for logging
 # import io # Not strictly needed for current logic but good for future image manipulation
 
 # Corrected SYSTEM_INSTRUCTION_PROMPT based on original chatbot.py
@@ -34,6 +35,9 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
 이제 방문객의 질문에 답변해주세요."""
 
 def generate_chatbot_response(user_question: str, base64_image_data: str | None = None) -> dict:
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.generate_chatbot_response(args={{_func_args}})")
     """
     Generates a chatbot response using Google Gemini API.
 

@@ -1,6 +1,7 @@
 import csv
 import os
 import random
+import sys # Added for logging
 from datetime import datetime
 
 # Path constants
@@ -38,6 +39,9 @@ def fake_scan_rrn() -> tuple[str, str]:
     """
     주민등록번호 스캔 흉내 (실제 스캐너 대신 임의의 데이터를 생성)
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.fake_scan_rrn(args={{_func_args}})")
     # CSV 파일에서 임의의 환자 정보 읽기 (데모용)
     try:
         with open(RESV_CSV, mode="r", encoding="utf-8-sig") as f:
@@ -61,6 +65,9 @@ def lookup_reservation(name: str, rrn: str) -> dict | None:
     """
     예약 내역 조회 (이름과 주민번호로 조회)
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.lookup_reservation(args={{_func_args}})")
     try:
         with open(RESV_CSV, mode="r", encoding="utf-8-sig") as f:
             reservations = list(csv.DictReader(f))
@@ -80,6 +87,9 @@ def new_ticket(department: str) -> str:
     """
     새로운 대기표 발급 (간단한 규칙으로 생성)
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.new_ticket(args={{_func_args}})")
     now = datetime.now()
     dept_code = department[0] if department else "X" # Use first letter of department
     ticket_num = f"{dept_code}{now.strftime('%H%M%S')}{random.randint(10,99)}"
@@ -93,6 +103,9 @@ def handle_scan_action() -> dict:
     Handles the 'scan' action: simulates RRN scan and looks up reservation.
     Returns a dictionary with name, rrn, and reservation_details.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_scan_action(args={{_func_args}})")
     name, rrn = fake_scan_rrn()
     reservation_details = lookup_reservation(name, rrn)
     return {
@@ -106,6 +119,9 @@ def handle_manual_action(name: str, rrn: str) -> dict | None:
     Handles the 'manual' input action: looks up reservation.
     Returns reservation_details dictionary or None.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_manual_action(args={{_func_args}})")
     # Basic validation, though more robust validation might be in the route or a shared util
     if not name or not rrn: # Or more specific RRN format validation
         return None # Or raise ValueError
@@ -118,6 +134,9 @@ def handle_choose_symptom_action(symptom: str) -> dict:
     Handles the 'choose_symptom' action: determines department and issues a new ticket.
     Returns a dictionary with department and ticket number.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_choose_symptom_action(args={{_func_args}})")
     department = SYM_TO_DEPT.get(symptom, SYM_TO_DEPT["기타"]) # Default to "가정의학과" if symptom not in map
     ticket = new_ticket(department)
     return {

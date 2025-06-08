@@ -2,6 +2,7 @@ import uuid
 import random
 import csv
 import os
+import sys # Added for logging
 
 # In-memory "database" for payments
 _payments_db = []
@@ -17,6 +18,9 @@ def process_new_payment(patient_id: str, amount: int, method: str) -> str:
     """
     Processes a new payment, stores it, and returns a unique payment ID.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.process_new_payment(args={{_func_args}})")
     payment_id = str(uuid.uuid4())
     payment_record = {
         "payment_id": payment_id,
@@ -35,6 +39,9 @@ def get_payment_details(payment_id: str) -> dict | None:
     Retrieves payment details for a given payment ID.
     Returns the payment record or None if not found.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.get_payment_details(args={{_func_args}})")
     for payment in _payments_db:
         if payment["payment_id"] == payment_id:
             return payment
@@ -45,6 +52,9 @@ def update_reservation_with_payment_details(patient_rrn: str, prescription_names
     """
     Updates a reservation in reservations.csv with prescription names and total fee.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.update_reservation_with_payment_details(args={{_func_args}})")
     RESERVATIONS_CSV = os.path.join(BASE_DIR, "data", "reservations.csv")
 
     if not os.path.exists(RESERVATIONS_CSV):
@@ -103,6 +113,9 @@ def update_reservation_with_payment_details(patient_rrn: str, prescription_names
 
 
 def load_department_prescriptions(department: str) -> dict:
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.load_department_prescriptions(args={{_func_args}})")
     if not os.path.exists(TREATMENT_FEES_CSV):
         return {"error": f"Data file not found: {TREATMENT_FEES_CSV}", "prescriptions": [], "total_fee": 0}
 

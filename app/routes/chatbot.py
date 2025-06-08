@@ -1,3 +1,4 @@
+import sys # Added for logging
 from flask import Blueprint, request, jsonify, render_template
 # Removed: os, google.generativeai, base64, io since they are handled by the service
 
@@ -9,6 +10,9 @@ chatbot_bp = Blueprint('chatbot', __name__, url_prefix='/api')
 
 @chatbot_bp.route('/chatbot', methods=['POST'])
 def handle_chatbot_request():
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_chatbot_request(args={{_func_args}})")
     data = request.get_json()
     if not data:
         return jsonify({"error": "Invalid JSON request"}), 400
@@ -54,4 +58,7 @@ def handle_chatbot_request():
 @chatbot_bp.route('/interface')
 def chatbot_interface():
     """Renders the chatbot interface page."""
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.chatbot_interface(args={{_func_args}})")
     return render_template("chatbot_interface.html")
