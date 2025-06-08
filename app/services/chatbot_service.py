@@ -3,6 +3,7 @@ import base64
 import google.generativeai as genai
 import sys # Added for logging
 import json # Added for JSON parsing
+import traceback # Added for stack trace logging
 # import io # Not strictly needed for current logic but good for future image manipulation
 
 from app.services.reception_service import (
@@ -345,7 +346,8 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
             return {"reply": reply_message}
 
         except Exception as e:
-            print(f"Error in payment_stage 'initial' for {name} ({rrn}): {e}")
+            print(f"Error in payment_stage 'initial' for patient {name} (RRN: {rrn}):")
+            traceback.print_exc() # This prints the full traceback to stderr
             return {"error": "처방 정보 조회 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
 
     elif payment_stage == "confirmation":
