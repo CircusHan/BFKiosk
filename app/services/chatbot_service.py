@@ -338,7 +338,7 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
             reply_message = (
                 f"{name}님의 처방 내역입니다:\n{formatted_prescriptions}\n"
                 f"총 금액은 {total_fee}원 입니다. "
-                f"결제하시겠습니까? 그렇다면 '현금' 또는 '카드'로 결제 수단을 말씀해주시고, 처방내역과 금액도 함께 확인해주세요. (예: 카드로 결제, {total_fee}원, 처방내역: {', '.join(actual_prescription_names)})"
+                "현금으로 결제하시겠습니까, 아니면 카드로 결제하시겠습니까?"
             )
             # Gemini needs to be prompted to remember/extract 'total_fee' and 'prescription_names' for the 'confirmation' stage.
             # The actual_prescription_names (list of strings) and total_fee (number) are what need to be passed back.
@@ -354,27 +354,35 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
         if payment_method not in ["cash", "card"]:
             return {"reply": "유효한 결제 수단이 아닙니다. '현금' 또는 '카드'로 말씀해주세요."}
 
-        if retrieved_total_fee_str is None or not retrieved_prescription_names:
-            return {"reply": "결제 정보(금액 또는 처방내역)가 명확하지 않아 확인 결제를 진행할 수 없습니다. 수납 절차를 다시 시작하려면 '수납'이라고 말씀해주세요. 이전 처방내역과 금액을 확인 후 다시 요청해주세요."}
+        # Re-fetch prescription details to ensure accuracy
+        try:
+            prescription_info = load_department_prescriptions(department)
+            if prescription_info.get("error"):
+                return {"reply": f"처방 정보를 다시 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
+
+            actual_total_fee = prescription_info.get("total_fee")
+            actual_prescription_names = prescription_info.get("prescription_names") # This should be a list of strings
+
+            if actual_total_fee is None or not actual_prescription_names:
+                return {"reply": "시스템에서 정확한 처방 금액 또는 내역을 확인하지 못했습니다. 수납 절차를 다시 시작해주십시오."}
+
+        except Exception as e:
+            print(f"Error re-fetching prescription details in 'confirmation' for {name} ({rrn}): {e}")
+            return {"error": "처방 정보 확인 중 예기치 않은 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
+
+        # Optional: Validate AI extracted parameters against actual data if needed.
+        # For now, we will trust the re-fetched data as the source of truth.
+        # The variables retrieved_total_fee_str and retrieved_prescription_names from parameters are no longer used directly for processing.
 
         try:
-            retrieved_total_fee = int(retrieved_total_fee_str)
-        except ValueError:
-            return {"reply": "결제 금액 정보가 잘못되었습니다. 수납 절차를 다시 시작해주세요."}
+            # Ensure actual_total_fee is an int, though it should be from load_department_prescriptions
+            if not isinstance(actual_total_fee, int):
+                 actual_total_fee = int(actual_total_fee)
 
-        final_prescription_names = []
-        if isinstance(retrieved_prescription_names, str):
-            final_prescription_names = [name.strip() for name in retrieved_prescription_names.split(',')]
-        elif isinstance(retrieved_prescription_names, list) and all(isinstance(item, str) for item in retrieved_prescription_names):
-            final_prescription_names = retrieved_prescription_names
-        else:
-             return {"reply": "처방내역 정보 형식이 올바르지 않습니다. 수납 절차를 다시 시작하여 정확한 처방내역을 확인 후 요청해주세요."}
-
-        try:
-            success = update_reservation_with_payment_details(rrn, final_prescription_names, retrieved_total_fee)
+            success = update_reservation_with_payment_details(rrn, actual_prescription_names, actual_total_fee)
 
             if success:
-                return {"reply": f"{name}님의 결제가 {payment_method}로 완료되었습니다. 총 {retrieved_total_fee}원이 결제되었습니다. 감사합니다."}
+                return {"reply": f"{name}님의 결제가 {payment_method}로 완료되었습니다. 총 {actual_total_fee}원이 결제되었습니다. 감사합니다."}
             else:
                 return {"error": "결제 처리 중 내부 오류가 발생했습니다. 다시 시도해주시거나 데스크에 문의하세요.", "status_code": 500}
         except Exception as e:
