@@ -150,6 +150,36 @@ class TestPaymentService(unittest.TestCase):
             # For 2 items, num_to_select is random.randint(min(2,2), min(3,2)) -> randint(2,2) -> 2
             mock_random_sample.assert_called_once_with(unittest.mock.ANY, 2)
 
+    @patch('app.services.payment_service.os.path.exists', return_value=True)
+    @patch('builtins.open')
+    @patch('app.services.payment_service.random.sample') # Mock random.sample
+    def test_load_department_prescriptions_unexpected_error(self, mock_random_sample, mock_open_func, mock_path_exists):
+        mock_csv_file = mock_open(read_data=MOCK_TREATMENT_FEES_CSV_DATA)
+        mock_open_func.return_value = mock_csv_file.return_value
+
+        # Configure random.sample to raise an unexpected error
+        mock_random_sample.side_effect = RuntimeError("Simulated unexpected error from random.sample")
+
+        department = "내과" # A department that would normally succeed
+        result = load_department_prescriptions(department)
+
+        self.assertIn("error", result, "Result should contain an 'error' key on unexpected exception.")
+        self.assertTrue(
+            result["error"].startswith("An unexpected server error occurred"),
+            f"Error message '{result['error']}' does not start with the expected prefix."
+        )
+        self.assertIn(
+            "Simulated unexpected error from random.sample",
+            result["error"],
+            "The original error message should be part of the reported error."
+        )
+        # Check that the default error structure is returned
+        self.assertEqual(result.get("prescriptions", []), [], "Prescriptions should be empty on error.")
+        self.assertEqual(result.get("total_fee"), 0, "Total_fee should be 0 on error.")
+        # Also ensure other keys that might exist on success are not there or are empty
+        self.assertEqual(result.get("prescriptions_for_display", []), [], "Prescriptions_for_display should be empty or not present on error.")
+        self.assertEqual(result.get("prescription_names", []), [], "Prescription_names should be empty or not present on error.")
+
 
 if __name__ == '__main__':
     unittest.main()
