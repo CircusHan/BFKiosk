@@ -37,7 +37,7 @@ def _add_korean_font(pdf_instance):
         )
     )
 
-def generate_prescription_pdf(patient_name, patient_rrn, department, prescriptions, total_fee):
+def create_prescription_pdf_bytes(patient_name, patient_rrn, department, prescriptions, total_fee):
     pdf = FPDF()
     pdf.add_page()
     _add_korean_font(pdf)
@@ -91,7 +91,7 @@ def generate_prescription_pdf(patient_name, patient_rrn, department, prescriptio
         return pdf_bytes.encode("latin-1")
     return bytes(pdf_bytes)
 
-def generate_medical_confirmation_pdf(patient_name, patient_rrn, disease_name):
+def create_confirmation_pdf_bytes(patient_name, patient_rrn, disease_name):
     pdf = FPDF()
     pdf.add_page()
     _add_korean_font(pdf)
