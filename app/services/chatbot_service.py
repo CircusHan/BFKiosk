@@ -237,7 +237,19 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
             update_success = update_reservation_status(patient_rrn, 'Registered', department=final_department, ticket_number=new_ticket_number, name=patient_name)
 
             if update_success:
-                return {"reply": f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."}
+                # reservation_details is from the outer scope when lookup_reservation was called
+                original_time = reservation_details.get("time", "정보 없음")
+                original_location = reservation_details.get("location", "정보 없음")
+                original_doctor = reservation_details.get("doctor", "정보 없음")
+
+                reply_message = (
+                    f"{patient_name}님의 예약이 확인되었습니다.\n"
+                    f"예약 시간: {original_time}\n"
+                    f"담당 의사: {original_doctor}\n"
+                    f"위치: {original_location}\n"
+                    f"{final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."
+                )
+                return {"reply": reply_message}
             else:
                 return {"error": "예약 상태 업데이트 중 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
         else:
