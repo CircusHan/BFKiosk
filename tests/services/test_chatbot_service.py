@@ -203,3 +203,269 @@ class TestChatbotService(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+# Import handler functions to be patched/tested if not already at top level
+from app.services.chatbot_service import (
+    handle_reception_request,
+    handle_payment_request,
+    handle_certificate_request
+)
+# Import specific services that handler functions might call, for mocking them
+# For example, if handle_reception_request calls functions from reception_service
+from app.services import reception_service, payment_service, certificate_service
+from app.utils import pdf_generator # For MissingKoreanFontError
+
+# Standard library imports
+import json # For creating mock JSON responses from Gemini
+
+class TestChatbotServiceHandlers(unittest.TestCase):
+    def setUp(self):
+        self.user_question = "A user's question"
+        self.api_key = "test_api_key_for_handlers"
+        # Common patchers for most tests in this class
+        self.getenv_patcher = patch('app.services.chatbot_service.os.getenv', return_value=self.api_key)
+        self.configure_patcher = patch('app.services.chatbot_service.genai.configure')
+        self.model_patcher = patch('app.services.chatbot_service.genai.GenerativeModel')
+
+        self.mock_os_getenv = self.getenv_patcher.start()
+        self.mock_genai_configure = self.configure_patcher.start()
+        self.mock_generative_model = self.model_patcher.start()
+
+        # Mock the model instance and its generate_content method by default
+        self.mock_model_instance = MagicMock()
+        self.mock_generative_model.return_value = self.mock_model_instance
+
+
+    def tearDown(self):
+        self.getenv_patcher.stop()
+        self.configure_patcher.stop()
+        self.model_patcher.stop()
+
+    def _prepare_mock_gemini_response(self, response_dict):
+        """Helper to set up the mock model's response."""
+        mock_response = MagicMock()
+        mock_candidate = MagicMock()
+        mock_content_part = MagicMock()
+        mock_content_part.text = json.dumps(response_dict) # Gemini returns a JSON string
+        mock_candidate.content.parts = [mock_content_part]
+        mock_candidate.finish_reason.name = "STOP"
+        mock_response.candidates = [mock_candidate]
+        mock_response.prompt_feedback.block_reason = None
+        self.mock_model_instance.generate_content.return_value = mock_response
+
+    @patch('app.services.chatbot_service.handle_reception_request')
+    def test_generate_chatbot_response_routes_to_reception(self, mock_handle_reception):
+        mock_handle_reception.return_value = {"reply": "Reception handled"}
+        gemini_response_data = {
+            "intent": "reception",
+            "parameters": {"name": "테스트"},
+            "user_query": self.user_question
+        }
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+
+        self.assertEqual(result, {"reply": "Reception handled"})
+        mock_handle_reception.assert_called_once_with(gemini_response_data["parameters"], gemini_response_data["user_query"])
+
+    @patch('app.services.chatbot_service.handle_payment_request')
+    def test_generate_chatbot_response_routes_to_payment(self, mock_handle_payment):
+        mock_handle_payment.return_value = {"reply": "Payment handled"}
+        gemini_response_data = {
+            "intent": "payment",
+            "parameters": {"amount": "1000"},
+            "user_query": self.user_question
+        }
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+
+        self.assertEqual(result, {"reply": "Payment handled"})
+        mock_handle_payment.assert_called_once_with(gemini_response_data["parameters"], gemini_response_data["user_query"])
+
+    @patch('app.services.chatbot_service.handle_certificate_request')
+    def test_generate_chatbot_response_routes_to_certificate(self, mock_handle_certificate):
+        mock_handle_certificate.return_value = {"reply": "Certificate handled"}
+        gemini_response_data = {
+            "intent": "certificate",
+            "parameters": {"type": "prescription"},
+            "user_query": self.user_question
+        }
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+
+        self.assertEqual(result, {"reply": "Certificate handled"})
+        mock_handle_certificate.assert_called_once_with(gemini_response_data["parameters"], gemini_response_data["user_query"])
+
+    def test_generate_chatbot_response_handles_general_intent(self):
+        gemini_response_data = {
+            "intent": "general",
+            "reply": "This is a general answer."
+        }
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+        self.assertEqual(result, {"reply": "This is a general answer."})
+
+    def test_generate_chatbot_response_handles_json_decode_error(self):
+        # Prepare malformed JSON
+        mock_response = MagicMock()
+        mock_candidate = MagicMock()
+        mock_content_part = MagicMock()
+        mock_content_part.text = "This is not valid JSON {{"
+        mock_candidate.content.parts = [mock_content_part]
+        mock_candidate.finish_reason.name = "STOP"
+        mock_response.candidates = [mock_candidate]
+        mock_response.prompt_feedback.block_reason = None
+        self.mock_model_instance.generate_content.return_value = mock_response
+
+        result = generate_chatbot_response(self.user_question)
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "AI로부터 유효하지 않은 JSON 응답을 받았습니다.")
+        self.assertEqual(result["status_code"], 500)
+
+    def test_generate_chatbot_response_handles_missing_reply_for_general_intent(self):
+        gemini_response_data = {"intent": "general"} # Missing "reply"
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "AI 응답에서 'reply' 필드를 찾을 수 없습니다 (intent=general).")
+        self.assertEqual(result["status_code"], 500)
+
+    def test_generate_chatbot_response_handles_unknown_intent(self):
+        gemini_response_data = {
+            "intent": "unknown_intent",
+            "parameters": {},
+            "user_query": self.user_question
+        }
+        self._prepare_mock_gemini_response(gemini_response_data)
+
+        result = generate_chatbot_response(self.user_question)
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "알 수 없거나 누락된 의도(intent) 값: unknown_intent")
+        self.assertEqual(result["status_code"], 500)
+
+    # --- Tests for handle_reception_request ---
+    @patch('app.services.chatbot_service.reception_service.add_new_patient_reception')
+    @patch('app.services.chatbot_service.reception_service.handle_choose_symptom_action')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_reception_new_patient_success(self, mock_lookup_reservation, mock_choose_symptom, mock_add_patient):
+        mock_lookup_reservation.return_value = None # New patient
+        mock_choose_symptom.return_value = {"department": "내과", "ticket": "N001"}
+        mock_add_patient.return_value = True # Successfully added
+
+        params = {"name": "홍길동", "rrn": "123456-1234567", "symptom": "fever"} # Assuming 'fever' is a valid key
+
+        # Directly test the handler function
+        result = handle_reception_request(params, "some query")
+
+        self.assertEqual(result, {"reply": "홍길동님, 내과으로 접수되셨습니다. 대기번호는 N001번 입니다."})
+        mock_lookup_reservation.assert_called_once_with("홍길동", "123456-1234567")
+        mock_choose_symptom.assert_called_once_with("fever") # Assuming symptom_param is directly used as key
+        mock_add_patient.assert_called_once_with("홍길동", "123456-1234567", "내과", "N001", initial_status="Registered")
+
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_reception_existing_patient_registered(self, mock_lookup_reservation):
+        mock_lookup_reservation.return_value = {
+            "name": "김철수", "rrn": "654321-7654321", "status": "Registered",
+            "department": "외과", "ticket_number": "S002"
+        }
+        params = {"name": "김철수", "rrn": "654321-7654321"}
+        result = handle_reception_request(params, "some query")
+        self.assertEqual(result, {"reply": "김철수님은 이미 외과으로 접수되셨습니다. 대기번호는 S002번 입니다. 추가 문의가 있으신가요?"})
+
+    def test_handle_reception_missing_name_rrn(self):
+        params = {}
+        result = handle_reception_request(params, "some query")
+        self.assertEqual(result, {"reply": "접수를 위해 성함과 주민등록번호를 알려주시겠어요? 예: 홍길동, 123456-1234567"})
+
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation', return_value=None)
+    def test_handle_reception_new_patient_no_symptom(self, mock_lookup):
+        params = {"name": "박영희", "rrn": "001122-0011220"}
+        # Patching SYMPTOMS directly in the chatbot_service's scope if it's imported there
+        with patch('app.services.chatbot_service.SYMPTOMS', [("fever", "발열"), ("cough", "기침")]):
+            result = handle_reception_request(params, "some query")
+            self.assertEqual(result, {"reply": "어떤 증상으로 방문하셨나요? 다음 중에서 선택해주세요: 발열, 기침 (예: 발열, 기침 등)"})
+
+    # --- Tests for handle_payment_request ---
+    @patch('app.services.chatbot_service.payment_service.update_reservation_with_payment_details')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_payment_confirmation_success(self, mock_lookup, mock_update_payment):
+        mock_lookup.return_value = {"name": "고길동", "rrn": "850515-1987654", "status": "Registered", "department": "내과"}
+        mock_update_payment.return_value = True
+
+        params = {
+            "name": "고길동", "rrn": "850515-1987654",
+            "payment_stage": "confirmation", "payment_method": "card",
+            "total_fee": "35000", "prescription_names": ["감기약", "소화제"]
+        }
+        result = handle_payment_request(params, "some query")
+        self.assertEqual(result, {"reply": "고길동님의 결제가 card로 완료되었습니다. 총 35000원이 결제되었습니다. 감사합니다."})
+        mock_update_payment.assert_called_once_with("850515-1987654", ["감기약", "소화제"], 35000)
+
+    @patch('app.services.chatbot_service.payment_service.load_department_prescriptions')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_payment_initial_success(self, mock_lookup, mock_load_prescriptions):
+        mock_lookup.return_value = {"name": "고길동", "rrn": "850515-1987654", "status": "Registered", "department": "내과"}
+        mock_load_prescriptions.return_value = {
+            "prescriptions_for_display": [{"name": "감기약", "fee": 15000}, {"name": "소화제", "fee": 20000}],
+            "total_fee": 35000,
+            "prescription_names": ["감기약", "소화제"]
+        }
+        params = {"name": "고길동", "rrn": "850515-1987654", "payment_stage": "initial"}
+        result = handle_payment_request(params, "some query")
+        expected_reply = (
+            "고길동님의 처방 내역입니다:\n- 감기약: 15000원\n- 소화제: 20000원\n"
+            "총 금액은 35000원 입니다. "
+            "결제하시겠습니까? 그렇다면 '현금' 또는 '카드'로 결제 수단을 말씀해주시고, 처방내역과 금액도 함께 확인해주세요. (예: 카드로 결제, 35000원, 처방내역: 감기약, 소화제)"
+        )
+        self.assertEqual(result, {"reply": expected_reply})
+
+    # --- Tests for handle_certificate_request ---
+    @patch('app.services.chatbot_service.base64.b64encode')
+    @patch('app.services.chatbot_service.certificate_service.prepare_medical_confirmation_pdf')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_certificate_confirmation_success(self, mock_lookup, mock_prepare_pdf, mock_b64encode):
+        mock_lookup.return_value = {"name": "박민지", "rrn": "950101-2000000", "status": "Paid", "department": "정형외과"}
+        mock_prepare_pdf.return_value = (b"pdf_bytes_data", "confirmation_950101-2000000.pdf")
+        mock_b64encode.return_value = b"base64_encoded_data"
+
+        params = {"name": "박민지", "rrn": "950101-2000000", "certificate_type": "confirmation"}
+        result = handle_certificate_request(params, "some query")
+
+        expected_result = {
+            "reply": "박민지님의 진료확인서 발급이 완료되었습니다. 파일명: confirmation_950101-2000000.pdf",
+            "pdf_filename": "confirmation_950101-2000000.pdf",
+            "pdf_data_base64": "base64_encoded_data"
+        }
+        self.assertEqual(result, expected_result)
+        mock_b64encode.assert_called_once_with(b"pdf_bytes_data")
+        mock_prepare_pdf.assert_called_once_with("박민지", "950101-2000000", "정형외과")
+
+    @patch('app.services.chatbot_service.certificate_service.get_prescription_data_for_pdf')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_certificate_prescription_needs_payment(self, mock_lookup, mock_get_presc_data):
+        mock_lookup.return_value = {"name": "이영수", "rrn": "750101-1000000", "status": "Registered", "department": "내과"}
+        # Simulate get_prescription_data_for_pdf returning an error because payment is not done
+        mock_get_presc_data.return_value = ("NEEDS_PAYMENT", "수납이 완료되지 않았습니다. 먼저 수납을 진행해주세요.")
+
+        params = {"name": "이영수", "rrn": "750101-1000000", "certificate_type": "prescription"}
+        result = handle_certificate_request(params, "some query")
+
+        self.assertEqual(result, {"reply": "처방전을 발급할 수 없습니다: 수납이 완료되지 않았습니다. 먼저 수납을 진행해주세요."})
+
+    @patch('app.services.chatbot_service.certificate_service.prepare_medical_confirmation_pdf')
+    @patch('app.services.chatbot_service.reception_service.lookup_reservation')
+    def test_handle_certificate_missing_font_error(self, mock_lookup, mock_prepare_pdf):
+        mock_lookup.return_value = {"name": "최지우", "rrn": "880101-2000000", "status": "Paid", "department": "피부과"}
+        mock_prepare_pdf.side_effect = pdf_generator.MissingKoreanFontError("Font not found")
+
+        params = {"name": "최지우", "rrn": "880101-2000000", "certificate_type": "confirmation"}
+        result = handle_certificate_request(params, "some query")
+
+        self.assertEqual(result, {
+            "reply": "증명서 PDF 생성에 필요한 한글 글꼴을 찾을 수 없습니다. 시스템 관리자에게 문의해주세요.",
+            "status_code": 500
+        })

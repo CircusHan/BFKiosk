@@ -47,8 +47,9 @@ def handle_chatbot_request():
 
         return jsonify(error_payload), status_code
     else:
-        # Successful response from service
-        return jsonify({"reply": service_response["reply"]})
+        # Successful response from service, which might include 'reply',
+        # 'pdf_filename', 'pdf_data_base64', etc.
+        return jsonify(service_response)
 
 # The chatbot_interface route remains unchanged.
 # Example of how to register this blueprint in app/__init__.py:
