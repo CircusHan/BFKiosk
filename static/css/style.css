@@ -15,7 +15,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
   "Helvetica Neue", Arial, "Noto Sans KR", "Apple SD Gothic Neo",
   "Malgun Gothic", sans-serif;
-  background: #f4f7fa;
+  background: linear-gradient(#f4f7fa, #e2ecfa);
   color: #222;
 }
 
@@ -42,7 +42,8 @@ body.font-large  * {
   left: 0;
   width: 100%;
   height: 60px;
-  background: #ffffff;
+  background: linear-gradient(90deg, #4f9bf5, #2c82f6);
+  color: #ffffff;
   border-bottom: 1px solid #d7e1ec;
   display: flex;
   align-items: center;
@@ -93,14 +94,49 @@ header button img {
   margin-top: 40px;
 }
 
+
+.logo-and-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
 .logo-and-title img {
   width: 120px;
   height: auto;
+  margin-right: 20px;
+}
+
+.logo-and-title h1 {
+  font-size: 2.5rem;
+  margin: 0;
 }
 
 .button-group button {
   width: 300px;
   font-size: 1.4rem;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.primary-btn {
+  width: 300px;
+  font-size: 1.5rem;
+  padding: 15px 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6fb8ff 0%, #47a6ff 100%);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.25);
 }
 
 /* --------------------------------------------------------

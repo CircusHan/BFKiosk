@@ -2,13 +2,13 @@
 {% block title %}증명서 발급{% endblock %}
 {% block content %}
   <h2>증명서 발급</h2>
-  <div style="text-align: center; margin-top: 50px;">
+  <div class="text-center mt-4">
       <p>발급받을 증명서 종류를 선택해주세요.</p>
       <a href="{{ url_for('certificate.generate_prescription_pdf') }}" style="text-decoration: none;">
-          <button style="padding: 20px 40px; font-size: 1.2em; margin: 10px; cursor: pointer;">처방전 발급</button>
+          <button class="primary-btn" style="margin: 10px;">처방전 발급</button>
       </a>
       <a href="{{ url_for('certificate.generate_confirmation_pdf') }}" style="text-decoration: none;">
-          <button style="padding: 20px 40px; font-size: 1.2em; margin: 10px; cursor: pointer;">진료확인서 발급</button>
+          <button class="primary-btn" style="margin: 10px;">진료확인서 발급</button>
       </a>
   </div>
 {% endblock %}
