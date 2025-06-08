@@ -11,6 +11,8 @@ from app.services.reception_service import (
     SYM_TO_DEPT,
     handle_choose_symptom_action,
     add_new_patient_reception,
+    new_ticket, # Added
+    update_reservation_status, # Added
     # fake_scan_rrn # Not using fake_scan_rrn in this path for now
 )
 from app.services.payment_service import (
@@ -200,11 +202,50 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
             return {"reply": f"{name}님은 이미 진료를 마치고 수납까지 완료하셨습니다. 증명서 발급이 필요하시면 말씀해주세요."}
         elif status == "Cancelled":
             return {"reply": f"{name}님의 이전 예약은 취소된 것으로 확인됩니다. 새로 접수하시겠습니까?"} # Could offer to re-register
+        elif status == "Pending":
+            pending_department = reservation_details.get("department")
+            patient_name = reservation_details.get("name", name) # Use name from record, fallback to param
+            patient_rrn = reservation_details.get("rrn", rrn)   # Use RRN from record
+            final_department = pending_department
+
+            if not pending_department:
+                symptom_from_params = parameters.get("symptom") # Check if symptom was provided in this turn
+                if not symptom_from_params:
+                    available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
+                    return {"reply": f"{patient_name}님의 예약은 확인되었으나, 진료 부서가 지정되지 않았습니다. 어떤 증상으로 방문하셨나요? 예: {available_symptoms_text}"}
+
+                symptom_key = None
+                if symptom_from_params in SYM_TO_DEPT:
+                    symptom_key = symptom_from_params
+                else:
+                    for key_val, display_name_val in SYMPTOMS:
+                        if symptom_from_params == display_name_val:
+                            symptom_key = key_val
+                            break
+                if not symptom_key:
+                    available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
+                    return {"reply": f"선택하신 '{symptom_from_params}' 증상을 찾을 수 없습니다. 다음 증상 중에서 선택해주세요: {available_symptoms_text}"}
+
+                symptom_action_result = handle_choose_symptom_action(symptom_key)
+                final_department = symptom_action_result["department"]
+
+            if not final_department : # Should ideally be resolved by now, but as a safeguard
+                 return {"reply": f"{patient_name}님, 예약 처리를 위해 진료 부서 정보가 필요합니다. 증상을 말씀해주시겠어요?"}
+
+            new_ticket_number = new_ticket(final_department)
+            # Assuming update_reservation_status can handle these kwargs. This will be verified/updated in a subsequent step.
+            update_success = update_reservation_status(patient_rrn, 'Registered', department=final_department, ticket_number=new_ticket_number, name=patient_name)
+
+            if update_success:
+                return {"reply": f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."}
+            else:
+                return {"error": "예약 상태 업데이트 중 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
         else:
-            # Catch other statuses like 'Pending Payment', 'Consulting' etc.
+            # Catch any other non-handled statuses
             return {"reply": f"{name}님의 예약 상태는 '{status}'입니다. 현재 새로 접수할 수 없거나 다른 조치가 필요합니다. 데스크에 문의해주세요."}
 
     # No existing reservation, proceed with new registration
+    # symptom_param is from the initial parameters.get("symptom")
     if not symptom_param:
         available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
         # TODO: Consider a way to present these as options if UI supports it.

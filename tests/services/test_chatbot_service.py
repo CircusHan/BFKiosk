@@ -469,3 +469,92 @@ class TestChatbotServiceHandlers(unittest.TestCase):
             "reply": "증명서 PDF 생성에 필요한 한글 글꼴을 찾을 수 없습니다. 시스템 관리자에게 문의해주세요.",
             "status_code": 500
         })
+
+    # --- Tests for handle_reception_request: Pending Status ---
+    @patch('app.services.chatbot_service.update_reservation_status')
+    @patch('app.services.chatbot_service.new_ticket')
+    @patch('app.services.chatbot_service.lookup_reservation')
+    def test_handle_reception_pending_patient_check_in_success_with_dept(self, mock_lookup_reservation, mock_new_ticket, mock_update_status):
+        mock_patient_name = "보류환자"
+        mock_patient_rrn = "PEND01-PENDING"
+        mock_pending_dept = "가정의학과"
+        mock_new_ticket_num = "P007"
+
+        mock_lookup_reservation.return_value = {
+            "name": mock_patient_name, "rrn": mock_patient_rrn,
+            "status": "Pending", "department": mock_pending_dept
+        }
+        mock_new_ticket.return_value = mock_new_ticket_num
+        mock_update_status.return_value = True
+
+        params = {"name": mock_patient_name, "rrn": mock_patient_rrn} # User might not provide symptom if dept exists
+        result = handle_reception_request(params, "Check me in.")
+
+        expected_reply = f"{mock_patient_name}님의 예약이 확인되었습니다. {mock_pending_dept}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
+        self.assertEqual(result, {"reply": expected_reply})
+        mock_lookup_reservation.assert_called_once_with(mock_patient_name, mock_patient_rrn)
+        mock_new_ticket.assert_called_once_with(mock_pending_dept)
+        mock_update_status.assert_called_once_with(
+            mock_patient_rrn, 'Registered',
+            department=mock_pending_dept,
+            ticket_number=mock_new_ticket_num,
+            name=mock_patient_name
+        )
+
+    @patch('app.services.chatbot_service.lookup_reservation')
+    def test_handle_reception_pending_patient_no_dept_asks_symptom(self, mock_lookup_reservation):
+        mock_patient_name = "보류환자투"
+        mock_patient_rrn = "PEND02-PENDING"
+        mock_lookup_reservation.return_value = {
+            "name": mock_patient_name, "rrn": mock_patient_rrn,
+            "status": "Pending", "department": None # No department
+        }
+
+        # Patch SYMPTOMS in the context of where handle_reception_request will see it
+        with patch('app.services.chatbot_service.SYMPTOMS', [("fever", "발열"), ("cough", "기침")]):
+            params = {"name": mock_patient_name, "rrn": mock_patient_rrn} # No symptom provided by user yet
+            result = handle_reception_request(params, "Check me in, no symptom mentioned.")
+
+            expected_reply = f"{mock_patient_name}님의 예약은 확인되었으나, 진료 부서가 지정되지 않았습니다. 어떤 증상으로 방문하셨나요? 예: 발열, 기침"
+            self.assertEqual(result, {"reply": expected_reply})
+        mock_lookup_reservation.assert_called_once_with(mock_patient_name, mock_patient_rrn)
+
+    @patch('app.services.chatbot_service.update_reservation_status')
+    @patch('app.services.chatbot_service.new_ticket')
+    @patch('app.services.chatbot_service.handle_choose_symptom_action')
+    @patch('app.services.chatbot_service.lookup_reservation')
+    def test_handle_reception_pending_patient_no_dept_with_symptom_success(
+        self, mock_lookup_reservation, mock_handle_choose_symptom, mock_new_ticket, mock_update_status
+    ):
+        mock_patient_name = "보류환자쓰리"
+        mock_patient_rrn = "PEND03-PENDING"
+        user_provided_symptom = "cough" # This is the key
+        derived_department = "호흡기내과"
+        mock_new_ticket_num = "P008"
+
+        mock_lookup_reservation.return_value = {
+            "name": mock_patient_name, "rrn": mock_patient_rrn,
+            "status": "Pending", "department": None
+        }
+        # Mocking SYM_TO_DEPT and SYMPTOMS is implicitly handled if handle_choose_symptom_action is correctly mocked
+        # and if the symptom key provided is valid.
+        mock_handle_choose_symptom.return_value = {"department": derived_department, "ticket": "ignored_ticket_from_choose_symptom"}
+        mock_new_ticket.return_value = mock_new_ticket_num
+        mock_update_status.return_value = True
+
+        # User provides symptom in this turn because bot asked in a hypothetical previous turn, or user is proactive
+        params = {"name": mock_patient_name, "rrn": mock_patient_rrn, "symptom": user_provided_symptom}
+        result = handle_reception_request(params, f"I have a {user_provided_symptom}.")
+
+        expected_reply = f"{mock_patient_name}님의 예약이 확인되었습니다. {derived_department}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
+        self.assertEqual(result, {"reply": expected_reply})
+
+        mock_lookup_reservation.assert_called_once_with(mock_patient_name, mock_patient_rrn)
+        mock_handle_choose_symptom.assert_called_once_with(user_provided_symptom)
+        mock_new_ticket.assert_called_once_with(derived_department)
+        mock_update_status.assert_called_once_with(
+            mock_patient_rrn, 'Registered',
+            department=derived_department,
+            ticket_number=mock_new_ticket_num,
+            name=mock_patient_name
+        )
