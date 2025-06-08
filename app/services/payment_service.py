@@ -114,6 +114,7 @@ def update_reservation_with_payment_details(patient_rrn: str, prescription_names
 
 
 def load_department_prescriptions(department: str) -> dict:
+    random.seed(42)
     _func_args = locals()
     _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
     print(f"ENTERING: {_module_path}.load_department_prescriptions(args={{_func_args}})")
