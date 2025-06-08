@@ -4,11 +4,11 @@
   {% if step == 'initial_payment' %}
     <h2>수납 처방 선택</h2>
     <p>선택된 진료과: {{ department }}</p>
-    <button id="loadPrescriptionsBtn">처방 불러오기</button>
+    <button id="loadPrescriptionsBtn" class="primary-btn">처방 불러오기</button>
     <div id="prescriptionsArea"></div>
     <div id="totalFeeArea"></div>
-    <button id="cashPaymentBtn" disabled>현금 결제</button>
-    <button id="cardPaymentBtn" disabled>카드 결제</button>
+    <button id="cashPaymentBtn" class="primary-btn" disabled>현금 결제</button>
+    <button id="cardPaymentBtn" class="primary-btn" disabled>카드 결제</button>
 
   {% elif step == 'input' %} {# This block might be part of an old flow #}
     <h2>개인정보 입력</h2>
@@ -38,7 +38,7 @@
       <li>소화제 2개</li>
     </ul>
     <p>복약 방법: 하루 3회 식후 복용</p>
-    <button onclick="location.href='{{ url_for('home.index') }}'">홈으로</button> {# Redirect to home page #}
+    <button class="primary-btn" onclick="location.href='{{ url_for('home.index') }}'">홈으로</button> {# Redirect to home page #}
   {% endif %}
 {% endblock %}
 
