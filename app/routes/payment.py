@@ -89,7 +89,6 @@ def load_prescriptions():
     # or adjust client. The task description for service said "return a dictionary containing
     # `prescriptions` and `total_fee`".
     # The original route returned: {"Prescription": row["Prescription"], "Fee": float(row["Fee"])}
-    # The service currently returns: {"prescriptions": [name1, name2], "total_fee": total_fee}
     # Let's assume for now the client needs the detailed objects.
     # I will need to modify the service `load_department_prescriptions`
     # OR I modify what's stored in session and what `certificate_service` expects.
@@ -136,8 +135,6 @@ def load_prescriptions():
     # The service should be the one providing the correct format for this route.
     # I will proceed assuming the service output IS ALREADY what the client expects.
     # This means the service returns: {'prescriptions': [{'name': ..., 'fee': ...}], 'total_fee': ...}
-    # The previous service code was:
-    # `return {"prescriptions": selected_prescription_names, "total_fee": total_fee}`
     # This needs correction in the service file.
     # I will make that correction to the service file first.
 

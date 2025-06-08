@@ -14,9 +14,9 @@ from app.services.reception_service import (
     SYM_TO_DEPT # Import for context if needed
 )
 
-MOCK_RESERVATIONS_CSV_DATA = """name,rrn,department,time,location,doctor
-김예약,850101-1234567,내과,10:00,본관1층,닥터김
-박테스트,920202-2345678,외과,14:30,별관2층,닥터박
+MOCK_RESERVATIONS_CSV_DATA = """name,rrn,department,time,location,doctor,status,transcription,amount
+김예약,850101-1234567,내과,10:00,본관1층,닥터김,Pending,,0
+박테스트,920202-2345678,외과,14:30,별관2층,닥터박,Pending,,0
 """
 
 class TestReceptionService(unittest.TestCase):
@@ -35,6 +35,9 @@ class TestReceptionService(unittest.TestCase):
         self.assertEqual(result["name"], name)
         self.assertEqual(result["rrn"], rrn)
         self.assertEqual(result["department"], "내과")
+        self.assertEqual(result["status"], "Pending")
+        self.assertEqual(result["transcription"], "")
+        self.assertEqual(result["amount"], "0") # Values from DictReader are strings
 
     @patch('app.services.reception_service.os.path.exists', return_value=True)
     @patch('builtins.open')
@@ -180,7 +183,11 @@ class TestReceptionService(unittest.TestCase):
             # Simulate random.choice returning the first entry from our mock CSV data
             # The data read by csv.DictReader will be a list of dicts
             # Example: [{'Name': '김예약', 'RRN': '850101-1234567', ...}, ...]
-            mock_random_choice.return_value = {"Name": "김예약", "RRN": "850101-1234567"}
+            mock_random_choice.return_value = {
+                "name": "김예약", "rrn": "850101-1234567", "department": "내과",
+                "time": "10:00", "location": "본관1층", "doctor": "닥터김",
+                "status": "Pending", "transcription": "", "amount": "0"
+            }
 
             name, rrn = fake_scan_rrn()
 
