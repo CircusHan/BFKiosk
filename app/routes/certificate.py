@@ -6,6 +6,7 @@ from flask import (
     Blueprint, render_template, session, redirect, url_for, Response
 )
 from werkzeug.http import dump_options_header # Added for Content-Disposition
+from urllib.parse import quote
 # Removed: request, jsonify as they are not used after refactoring
 # Removed: os, csv, random as their functionality is moved to service
 
@@ -86,10 +87,11 @@ def generate_prescription_pdf():
         except MissingKoreanFontError as e:
             return render_template("error.html", message=str(e)), 500
 
+        disposition = f"inline; filename*=UTF-8''{quote(filename)}"
         return Response(
             pdf_bytes,
             mimetype='application/pdf',
-            headers={'Content-Disposition': dump_options_header('inline', {'filename': filename})}
+            headers={'Content-Disposition': disposition}
         )
     # Handle error cases based on status_code from get_prescription_data_for_pdf
     elif status_code == "NEEDS_RECEPTION_COMPLETION": # New condition
@@ -140,8 +142,9 @@ def generate_confirmation_pdf():
     except MissingKoreanFontError as e:
         return render_template("error.html", message=str(e)), 500
 
+    disposition = f"inline; filename*=UTF-8''{quote(filename)}"
     return Response(
         pdf_bytes, # pdf_bytes is already BytesIO object from service
         mimetype='application/pdf',
-        headers={'Content-Disposition': dump_options_header('inline', {'filename': filename})}
+        headers={'Content-Disposition': disposition}
     )
