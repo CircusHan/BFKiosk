@@ -61,6 +61,7 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
     *   `intent`는 식별된 서비스 또는 "general"로 설정합니다.
     *   `parameters` 객체에는 추출된 정보만 포함합니다. 값이 없는 파라미터는 생략합니다.
     *   `user_query`에는 사용자의 원본 메시지를 그대로 전달합니다.
+    **중요: 응답은 반드시 JSON 객체 문자열 그 자체여야 합니다. JSON 객체를 설명하는 어떤 추가적인 텍스트나 마크다운 형식(예: ```json ... ```)도 포함해서는 안 됩니다. 오직 순수한 JSON 문자열만 응답으로 제공해야 합니다.**
 
 4.  **JSON 응답 형식 (일반 문의 시):** 사용자의 요청이 특정 서비스와 관련 없는 일반 문의인 경우, 다음과 같은 JSON 형식으로 응답해야 합니다.
     ```json
@@ -70,6 +71,7 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
     }
     ```
     *   `reply` 필드에 직접적인 텍스트 답변을 제공합니다.
+    **중요: 이 경우에도 응답은 위의 JSON 형식이어야 하며, `reply` 값 외에 다른 설명이나 추가 텍스트를 포함하지 마십시오.**
 
 **세부 지침:**
 
@@ -520,12 +522,22 @@ def generate_chatbot_response(user_question: str, base64_image_data: str | None 
             return {"error": "챗봇으로부터 비어있는 응답을 받았습니다.", "details": "Empty content in response.", "status_code": 500}
 
         bot_response_text = candidate.content.parts[0].text
-
+        print(f"Raw Gemini response text: >>>{bot_response_text}<<<")
         # Parse the JSON response from Gemini
         try:
             parsed_response = json.loads(bot_response_text)
         except json.JSONDecodeError as e:
-            return {"error": "AI로부터 유효하지 않은 JSON 응답을 받았습니다.", "details": str(e), "status_code": 500}
+            # The raw response is already printed in the previous step.
+            # Here, we add some of it to the error details for context in the response.
+            error_detail = f"JSONDecodeError: {str(e)}. Problematic text snippet (approx first 200 chars): '{bot_response_text[:200]}...'"
+            # It's good to also log the full text server-side if not already done by the print earlier,
+            # but the print statement added in Step 1 should cover server-side logging of the full text.
+            print(f"JSON PARSING FAILED. Full raw text was logged above. Error: {str(e)}") # Re-iterate for clarity in logs
+            return {
+                "error": "AI로부터 유효하지 않은 JSON 형식의 응답을 받았습니다. 시스템 관리자에게 문의하거나 다시 시도해주세요.", # More user-friendly main error
+                "details": error_detail, # For debugging
+                "status_code": 500
+            }
 
         intent = parsed_response.get("intent")
         parameters = parsed_response.get("parameters", {})
