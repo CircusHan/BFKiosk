@@ -2,6 +2,10 @@ import unittest
 from unittest.mock import patch, mock_open, MagicMock
 import os
 from datetime import datetime
+import sys
+
+# Ensure the app package is importable during test collection
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from app.services.reception_service import (
     lookup_reservation,

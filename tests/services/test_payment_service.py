@@ -2,6 +2,10 @@ import unittest
 from unittest.mock import patch, mock_open
 import os
 import uuid # For checking payment_id format, though not strictly necessary to mock uuid itself
+import sys
+
+# Ensure the app package is importable during test collection
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from app.services.payment_service import (
     process_new_payment,

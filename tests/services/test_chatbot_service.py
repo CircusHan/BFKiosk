@@ -2,8 +2,11 @@ import unittest
 from unittest.mock import patch, MagicMock, ANY
 import os
 import base64
+import sys
 
-# Assuming the service is in app.services.chatbot_service
+# Ensure the app package is importable during test collection
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from app.services.chatbot_service import generate_chatbot_response, SYSTEM_INSTRUCTION_PROMPT
 
 class TestChatbotService(unittest.TestCase):
