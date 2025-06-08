@@ -158,7 +158,35 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
       "user_query": "네, 카드로 결제할게요. 금액은 35000원이고, 처방약은 감기약, 소화제 맞아요."
     }
     ```
-
+*   사용자: "네, 카드로 결제할게요. (이전 대화에서 수납 의도, 사용자 정보, 처방내역 및 총액이 안내된 상태)
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "payment",
+      "parameters": {
+        "name": "고길동",
+        "rrn": "850515-1987654",
+        "payment_stage": "confirmation",
+        "payment_method": "card",
+      },
+      "user_query": "네, 카드로 결제할게요."
+    }
+    ```
+*   사용자: "네, 현금으로 결제할게요. (이전 대화에서 수납 의도, 사용자 정보, 처방내역 및 총액이 안내된 상태)
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "payment",
+      "parameters": {
+        "name": "고길동",
+        "rrn": "850515-1987654",
+        "payment_stage": "confirmation",
+        "payment_method": "cash",
+      },
+      "user_query": "네, 현금으로 결제할게요."
+    }
+    ```
+    
 *   사용자: "처방전 발급해주세요."
     늘봄이 (JSON):
     ```json
