@@ -478,7 +478,7 @@ def handle_certificate_request(parameters: dict, user_query: str) -> dict:
             if pdf_bytes and filename:
                 pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
                 return {
-                    "reply": f"{name}님의 처방전 발급이 완료되었습니다. 파일명: {filename}",
+                    "reply": f"{name}님의 처방전 발급이 완료되었습니다. 새 창에서 확인해주세요.",
                     "pdf_filename": filename,
                     "pdf_data_base64": pdf_base64  # For the API to send to client
                 }
@@ -502,7 +502,7 @@ def handle_certificate_request(parameters: dict, user_query: str) -> dict:
             if pdf_bytes and filename:
                 pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
                 return {
-                    "reply": f"{name}님의 진료확인서 발급이 완료되었습니다. 파일명: {filename}",
+                    "reply": f"{name}님의 진료확인서 발급이 완료되었습니다. 새 창에서 확인해주세요.",
                     "pdf_filename": filename,
                     "pdf_data_base64": pdf_base64 # For the API to send to client
                 }
