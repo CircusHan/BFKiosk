@@ -395,6 +395,22 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
         # For now, we will trust the re-fetched data as the source of truth.
         # The variables retrieved_total_fee_str and retrieved_prescription_names from parameters are no longer used directly for processing.
 
+        prescription_info = load_department_prescriptions(department)
+        if prescription_info.get("error"):
+            return {"reply": f"처방 정보를 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
+
+        # Correctly get the list of detailed prescription objects
+        detailed_prescriptions = prescription_info.get("prescriptions_for_display", [])
+
+        # Format the prescriptions for display.
+        # This relies on payment_service.load_department_prescriptions correctly providing 'name' and 'fee'
+        # in the dictionaries within the 'prescriptions_for_display' list.
+        formatted_prescriptions = "\n".join([f"- {item['name']}: {item['fee']}원" for item in detailed_prescriptions])
+
+        # Get other necessary info from prescription_info
+        actual_prescription_names = prescription_info.get("prescription_names", [])
+        total_fee = prescription_info.get("total_fee")
+
         try:
             # Ensure actual_total_fee is an int, though it should be from load_department_prescriptions
             if not isinstance(actual_total_fee, int):
