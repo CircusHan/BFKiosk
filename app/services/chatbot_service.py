@@ -390,22 +390,7 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
         if payment_method not in ["cash", "card"]:
             return {"reply": "유효한 결제 수단이 아닙니다. '현금' 또는 '카드'로 말씀해주세요."}
 
-        # Re-fetch prescription details to ensure accuracy
-        try:
-            prescription_info = load_department_prescriptions(department)
-            if prescription_info.get("error"):
-                return {"reply": f"처방 정보를 다시 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
-
-            actual_total_fee = prescription_info.get("total_fee")
-            actual_prescription_names = prescription_info.get("prescription_names") # This should be a list of strings
-
-            if actual_total_fee is None or not actual_prescription_names:
-                return {"reply": "시스템에서 정확한 처방 금액 또는 내역을 확인하지 못했습니다. 수납 절차를 다시 시작해주십시오."}
-
-        except Exception as e:
-            print(f"Error re-fetching prescription details in 'confirmation' for {name} ({rrn}): {e}")
-            return {"error": "처방 정보 확인 중 예기치 않은 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
-
+    
         # Optional: Validate AI extracted parameters against actual data if needed.
         # For now, we will trust the re-fetched data as the source of truth.
         # The variables retrieved_total_fee_str and retrieved_prescription_names from parameters are no longer used directly for processing.
