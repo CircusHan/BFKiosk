@@ -473,13 +473,18 @@ class TestChatbotServiceHandlers(unittest.TestCase):
     @patch('app.services.chatbot_service.lookup_reservation')
     def test_handle_reception_pending_patient_check_in_success_with_dept(self, mock_lookup_reservation, mock_new_ticket, mock_update_status):
         mock_patient_name = "보류환자"
+        mock_patient_name = "보류환자"
         mock_patient_rrn = "PEND01-PENDING"
         mock_pending_dept = "가정의학과"
         mock_new_ticket_num = "P007"
+        mock_original_time = "09:00"
+        mock_original_doctor = "김의사"
+        mock_original_location = "2층 A-1"
 
         mock_lookup_reservation.return_value = {
             "name": mock_patient_name, "rrn": mock_patient_rrn,
-            "status": "Pending", "department": mock_pending_dept
+            "status": "Pending", "department": mock_pending_dept,
+            "time": mock_original_time, "location": mock_original_location, "doctor": mock_original_doctor
         }
         mock_new_ticket.return_value = mock_new_ticket_num
         mock_update_status.return_value = True
@@ -487,8 +492,14 @@ class TestChatbotServiceHandlers(unittest.TestCase):
         params = {"name": mock_patient_name, "rrn": mock_patient_rrn} # User might not provide symptom if dept exists
         result = handle_reception_request(params, "Check me in.")
 
-        expected_reply = f"{mock_patient_name}님의 예약이 확인되었습니다. {mock_pending_dept}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
-        self.assertEqual(result, {"reply": expected_reply})
+        expected_reply = (
+            f"{mock_patient_name}님의 예약이 확인되었습니다.\n"
+            f"예약 시간: {mock_original_time}\n"
+            f"담당 의사: {mock_original_doctor}\n"
+            f"위치: {mock_original_location}\n"
+            f"{mock_pending_dept}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
+        )
+        self.assertEqual(result.get("reply"), expected_reply) # Using .get("reply") for safety
         mock_lookup_reservation.assert_called_once_with(mock_patient_name, mock_patient_rrn)
         mock_new_ticket.assert_called_once_with(mock_pending_dept)
         mock_update_status.assert_called_once_with(
@@ -528,13 +539,15 @@ class TestChatbotServiceHandlers(unittest.TestCase):
         user_provided_symptom = "cough" # This is the key
         derived_department = "호흡기내과"
         mock_new_ticket_num = "P008"
+        mock_original_time = "10:00"
+        mock_original_doctor = "이닥터"
+        mock_original_location = "3층 B-2"
 
         mock_lookup_reservation.return_value = {
             "name": mock_patient_name, "rrn": mock_patient_rrn,
-            "status": "Pending", "department": None
+            "status": "Pending", "department": None,
+            "time": mock_original_time, "location": mock_original_location, "doctor": mock_original_doctor
         }
-        # Mocking SYM_TO_DEPT and SYMPTOMS is implicitly handled if handle_choose_symptom_action is correctly mocked
-        # and if the symptom key provided is valid.
         mock_handle_choose_symptom.return_value = {"department": derived_department, "ticket": "ignored_ticket_from_choose_symptom"}
         mock_new_ticket.return_value = mock_new_ticket_num
         mock_update_status.return_value = True
@@ -543,8 +556,14 @@ class TestChatbotServiceHandlers(unittest.TestCase):
         params = {"name": mock_patient_name, "rrn": mock_patient_rrn, "symptom": user_provided_symptom}
         result = handle_reception_request(params, f"I have a {user_provided_symptom}.")
 
-        expected_reply = f"{mock_patient_name}님의 예약이 확인되었습니다. {derived_department}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
-        self.assertEqual(result, {"reply": expected_reply})
+        expected_reply = (
+            f"{mock_patient_name}님의 예약이 확인되었습니다.\n"
+            f"예약 시간: {mock_original_time}\n"
+            f"담당 의사: {mock_original_doctor}\n"
+            f"위치: {mock_original_location}\n"
+            f"{derived_department}으로 접수되었으며, 대기번호는 {mock_new_ticket_num}번입니다."
+        )
+        self.assertEqual(result.get("reply"), expected_reply) # Using .get("reply")
 
         mock_lookup_reservation.assert_called_once_with(mock_patient_name, mock_patient_rrn)
         mock_handle_choose_symptom.assert_called_once_with(user_provided_symptom)
