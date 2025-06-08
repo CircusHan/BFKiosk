@@ -82,7 +82,22 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
             else:
                 parsed_prescription_names = []
 
-            selected_prescriptions = [{"name": med_name} for med_name in parsed_prescription_names]
+            treatment_fees_path = os.path.join(base_dir, "data", "treatment_fees.csv")
+            treatment_fee_map = {}
+            if os.path.exists(treatment_fees_path):
+                try:
+                    with open(treatment_fees_path, newline="", encoding="utf-8-sig") as fee_file:
+                        fee_reader = csv.DictReader(fee_file)
+                        for row in fee_reader:
+                            treatment_fee_map[row.get("Prescription", "").strip()] = int(row.get("Fee", 0))
+                except Exception:
+                    # If CSV reading fails, fall back to zero fees
+                    treatment_fee_map = {}
+
+            selected_prescriptions = []
+            for med_name in parsed_prescription_names:
+                fee_val = treatment_fee_map.get(med_name, 0)
+                selected_prescriptions.append({"name": med_name, "fee": fee_val})
 
             # department argument is used here
             prescription_data_template = {
