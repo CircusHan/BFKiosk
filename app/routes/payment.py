@@ -79,7 +79,7 @@ def load_prescriptions():
 
     # Store prescription names and total fee in session for certificate generation
     # The service now returns a list of names directly in result["prescriptions"]
-    session["last_prescriptions"] = result["prescriptions"]
+    session["last_prescriptions"] = result["prescription_names"]
     session["last_total_fee"] = result["total_fee"]
 
     # The client-side JavaScript in payment.html expects a list of objects,
