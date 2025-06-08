@@ -190,9 +190,7 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
     name = parameters.get("name")
     rrn = parameters.get("rrn")
     symptom_param = parameters.get("symptom") # This might be a display name or a key
-    time_param = parameters.get("time")
-    location_param = parameters.get("location")
-    doctor_param = parameters.get("doctor")
+    # time_param, location_param, doctor_param removed from here as they are not used for saving.
 
     if not name or not rrn:
         # This should ideally be caught by Gemini's prompting, but as a fallback.
@@ -204,9 +202,20 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
         status = reservation_details.get("status")
         dept = reservation_details.get("department", "알 수 없음")
         ticket = reservation_details.get("ticket_number", "알 수 없음")
+        time_from_csv = reservation_details.get("time")
+        location_from_csv = reservation_details.get("location")
+        doctor_from_csv = reservation_details.get("doctor")
 
         if status == "Registered":
-            return {"reply": f"{name}님은 이미 {dept}으로 접수되셨습니다. 대기번호는 {ticket}번 입니다. 추가 문의가 있으신가요?"}
+            reply_message = f"{name}님은 이미 {dept}으로 접수되셨습니다. 대기번호는 {ticket}번 입니다."
+            if time_from_csv and time_from_csv.strip():
+                reply_message += f" 예약 시간: {time_from_csv}."
+            if location_from_csv and location_from_csv.strip():
+                reply_message += f" 위치: {location_from_csv}."
+            if doctor_from_csv and doctor_from_csv.strip():
+                reply_message += f" 담당 의사: {doctor_from_csv}."
+            reply_message += " 추가 문의가 있으신가요?"
+            return {"reply": reply_message}
         elif status == "Paid":
             return {"reply": f"{name}님은 이미 진료를 마치고 수납까지 완료하셨습니다. 증명서 발급이 필요하시면 말씀해주세요."}
         elif status == "Cancelled":
@@ -247,25 +256,25 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
                 'department': final_department,
                 'ticket_number': new_ticket_number,
                 'name': patient_name
+                # time, location, doctor are not saved via this function call directly.
+                # They are assumed to be part of the reservation_details if set initially.
             }
-            if time_param:
-                update_kwargs['time'] = time_param
-            if location_param:
-                update_kwargs['location'] = location_param
-            if doctor_param:
-                update_kwargs['doctor'] = doctor_param
-
             update_success = update_reservation_status(patient_rrn, 'Registered', **update_kwargs)
 
             if update_success:
-                reply_message = f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."
-                if time_param:
-                    reply_message += f" 예약 시간: {time_param}."
-                if location_param:
-                    reply_message += f" 위치: {location_param}."
-                if doctor_param:
-                    reply_message += f" 담당의: {doctor_param}."
-                return {"reply": reply_message}
+                base_reply = f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."
+                # Display time/location/doctor if they were part of the original 'Pending' reservation_details
+                time_val = reservation_details.get("time")
+                loc_val = reservation_details.get("location")
+                doc_val = reservation_details.get("doctor")
+
+                if time_val and time_val.strip():
+                    base_reply += f" 예약 시간: {time_val}."
+                if loc_val and loc_val.strip():
+                    base_reply += f" 위치: {loc_val}."
+                if doc_val and doc_val.strip():
+                    base_reply += f" 담당 의사: {doc_val}."
+                return {"reply": base_reply}
             else:
                 return {"error": "예약 상태 업데이트 중 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
         else:
