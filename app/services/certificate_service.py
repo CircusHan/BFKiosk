@@ -63,6 +63,19 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
             return ("ZERO_FEE_PAID", "결제된 금액이 0원 이하입니다. 유효한 처방전 발급이 불가능합니다. 관리자에게 문의하세요.")
         else:
             # This is the "OK" case, proceed to prepare and return prescription data
+            doctor_name_from_reservation = patient_reservation_data.get("doctor", "김의사") # Default if not found
+
+            reservation_time_str = patient_reservation_data.get("time")
+            issue_date_for_pdf = datetime.now().strftime("%Y-%m-%d") # Default to current date
+            if reservation_time_str:
+                try:
+                    # Assuming reservation_time_str is like "YYYY-MM-DD HH:MM"
+                    reservation_datetime_obj = datetime.strptime(reservation_time_str.split(" ")[0], "%Y-%m-%d")
+                    issue_date_for_pdf = reservation_datetime_obj.strftime("%Y-%m-%d")
+                except ValueError:
+                    # If parsing fails, keep default (current date)
+                    pass # Optionally log this: print(f"Warning: Could not parse date from '{reservation_time_str}'")
+
             prescription_names_str = patient_reservation_data.get("prescription_names", "")
             if prescription_names_str:
                 parsed_prescription_names = [name.strip() for name in prescription_names_str.split(',') if name.strip()]
@@ -73,12 +86,12 @@ def get_prescription_data_for_pdf(patient_rrn: str, department: str):
 
             # department argument is used here
             prescription_data_template = {
-                "doctor_name": "김의사",
-                "doctor_license_number": f"{random.randint(1000, 9999)}",
+                "doctor_name": doctor_name_from_reservation,
+                "doctor_license_number": f"{random.randint(1000, 9999)}", # Existing placeholder
                 "department": department,
                 "prescriptions": selected_prescriptions,
                 "total_fee": fetched_total_fee,
-                "issue_date": datetime.now().strftime("%Y-%m-%d")
+                "issue_date": issue_date_for_pdf # Use formatted issue date
             }
             return ("OK", prescription_data_template)
 
@@ -98,7 +111,16 @@ def prepare_prescription_pdf(patient_name: str, patient_rrn: str, department: st
     prescription_data["patient_name"] = patient_name
     prescription_data["patient_rrn"] = patient_rrn
 
-    pdf_bytes = create_prescription_pdf_bytes(**prescription_data)
+    # Call with explicit arguments matching the updated signature
+    pdf_bytes = create_prescription_pdf_bytes(
+        patient_name=prescription_data["patient_name"],
+        patient_rrn=prescription_data["patient_rrn"],
+        department=prescription_data["department"],
+        prescriptions=prescription_data["prescriptions"],
+        total_fee=prescription_data["total_fee"],
+        doctor_name=prescription_data["doctor_name"],
+        issue_date=prescription_data["issue_date"]
+    )
     filename = f"prescription_{patient_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     return pdf_bytes, filename
 
