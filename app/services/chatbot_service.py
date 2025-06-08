@@ -40,6 +40,9 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
     *   `rrn` (문자열, 주민등록번호, 형식: xxxxxx-xxxxxxx, 예: "900101-1234567")
     *   `symptom` (문자열, 예: "두통", "기침", "감기", 가능한 경우 미리 정의된 목록 사용) - 접수 시에만 해당
     *   `department` (문자열, 예: "내과", "소아과") - 사용자가 특정 부서를 언급한 경우
+    *   `time` (문자열, 예약 시간, 예: "오늘 오후 2시", "내일 오전 10시 30분") - 접수 시 사용자가 언급한 경우
+    *   `location` (문자열, 예약 희망 위치 또는 특정 클리닉 명칭, 예: "본원", "강남지점 피부과") - 접수 시 사용자가 언급한 경우
+    *   `doctor` (문자열, 담당 의사 이름, 예: "김민준 의사") - 접수 시 사용자가 언급한 경우
     *   `certificate_type` (다음 중 하나: "prescription" (처방전), "confirmation" (진료확인서)) - 증명서 발급 시에만 해당
     *   `payment_stage` (다음 중 하나: "initial" (결제 시작), "confirmation" (결제 수단 확인)) - 수납 시에만 해당
     *   `payment_method` (다음 중 하나: "cash" (현금), "card" (카드)) - 수납 확인(confirmation) 단계에서만 해당
@@ -53,6 +56,9 @@ SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절
         "rrn": "...",
         "symptom": "...",
         "department": "...",
+        "time": "...",
+        "location": "...",
+        "doctor": "...",
         "certificate_type": "...",
         "payment_stage": "...",
         "payment_method": "..."
@@ -184,6 +190,9 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
     name = parameters.get("name")
     rrn = parameters.get("rrn")
     symptom_param = parameters.get("symptom") # This might be a display name or a key
+    time_param = parameters.get("time")
+    location_param = parameters.get("location")
+    doctor_param = parameters.get("doctor")
 
     if not name or not rrn:
         # This should ideally be caught by Gemini's prompting, but as a fallback.
@@ -233,11 +242,30 @@ def handle_reception_request(parameters: dict, user_query: str) -> dict:
                  return {"reply": f"{patient_name}님, 예약 처리를 위해 진료 부서 정보가 필요합니다. 증상을 말씀해주시겠어요?"}
 
             new_ticket_number = new_ticket(final_department)
-            # Assuming update_reservation_status can handle these kwargs. This will be verified/updated in a subsequent step.
-            update_success = update_reservation_status(patient_rrn, 'Registered', department=final_department, ticket_number=new_ticket_number, name=patient_name)
+
+            update_kwargs = {
+                'department': final_department,
+                'ticket_number': new_ticket_number,
+                'name': patient_name
+            }
+            if time_param:
+                update_kwargs['time'] = time_param
+            if location_param:
+                update_kwargs['location'] = location_param
+            if doctor_param:
+                update_kwargs['doctor'] = doctor_param
+
+            update_success = update_reservation_status(patient_rrn, 'Registered', **update_kwargs)
 
             if update_success:
-                return {"reply": f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."}
+                reply_message = f"{patient_name}님의 예약이 확인되었습니다. {final_department}으로 접수되었으며, 대기번호는 {new_ticket_number}번입니다."
+                if time_param:
+                    reply_message += f" 예약 시간: {time_param}."
+                if location_param:
+                    reply_message += f" 위치: {location_param}."
+                if doctor_param:
+                    reply_message += f" 담당의: {doctor_param}."
+                return {"reply": reply_message}
             else:
                 return {"error": "예약 상태 업데이트 중 오류가 발생했습니다. 데스크에 문의해주세요.", "status_code": 500}
         else:
