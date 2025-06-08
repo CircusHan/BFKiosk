@@ -365,7 +365,7 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
 
             # Get other necessary info from prescription_info
             actual_prescription_names = prescription_info.get("prescription_names", [])
-            total_fee = prescription_info.get("total_fee")
+            actual_total_fee = prescription_info.get("total_fee")
 
             if total_fee is None: # Keep existing check for total_fee
                  return {"error": "처방 정보에서 총 금액을 가져올 수 없습니다.", "status_code": 500}
