@@ -20,6 +20,7 @@ from app.services.certificate_service import (
     prepare_prescription_pdf,
     prepare_medical_confirmation_pdf,
 )
+from app.services.reception_service import lookup_reservation
 
 certificate_bp = Blueprint(
     "certificate", __name__, url_prefix="/certificate", template_folder="../../templates"
@@ -49,13 +50,24 @@ def generate_prescription_pdf():
     print(f"ENTERING: {_module_path}.generate_prescription_pdf(args={{_func_args}})")
     patient_name = session.get("patient_name")
     patient_rrn = session.get("patient_rrn")
-    department = session.get("department")
+    # department = session.get("department") # Removed
 
     if not all([patient_name, patient_rrn]):
         return redirect(url_for("reception.reception", error="patient_info_missing"))
 
-    if not department:
-        return redirect(url_for("reception.reception", error="department_info_missing"))
+    # if not department: # Removed old check
+    #     return redirect(url_for("reception.reception", error="department_info_missing"))
+
+    reservation_details = lookup_reservation(name=patient_name, rrn=patient_rrn)
+
+    if not reservation_details:
+        # Redirect or return error if no reservation found for the user
+        return redirect(url_for("reception.reception", error="no_reservation_for_pdf"))
+
+    department = reservation_details.get("department")
+    if not department: # Check if department is empty or None in the fetched details
+        # Redirect or return error if department is missing in the reservation
+        return redirect(url_for("reception.reception", error="department_missing_for_pdf"))
 
     # last_prescriptions_from_session = session.get("last_prescriptions") # Removed
     # last_total_fee_from_session = session.get("last_total_fee") # Removed
