@@ -522,7 +522,23 @@ def generate_chatbot_response(user_question: str, base64_image_data: str | None 
             return {"error": "챗봇으로부터 비어있는 응답을 받았습니다.", "details": "Empty content in response.", "status_code": 500}
 
         bot_response_text = candidate.content.parts[0].text
-        print(f"Raw Gemini response text: >>>{bot_response_text}<<<")
+        # Store original raw text for logging, then clean it for parsing
+        original_gemini_text = bot_response_text
+
+        cleaned_text = bot_response_text.strip()
+        if cleaned_text.startswith("```json"):
+            cleaned_text = cleaned_text[len("```json"):].strip()
+        elif cleaned_text.startswith("```"): # Handle if just ``` is present
+            cleaned_text = cleaned_text[len("```"):].strip()
+
+        if cleaned_text.endswith("```"):
+            cleaned_text = cleaned_text[:-len("```")].strip()
+
+        # Update bot_response_text to the cleaned version for parsing
+        bot_response_text = cleaned_text
+
+        print(f"Original Gemini raw text: >>>{original_gemini_text}<<<")
+        print(f"Cleaned text for JSON parsing: >>>{bot_response_text}<<<")
         # Parse the JSON response from Gemini
         try:
             parsed_response = json.loads(bot_response_text)
