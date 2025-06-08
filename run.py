@@ -1,5 +1,12 @@
 import shutil
 import os
+import sys
+
+# Ensure the project root is in sys.path for robust imports
+project_root = os.path.abspath(os.path.dirname(__file__))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from app import create_app
 
 # --- Start of CSV reset logic ---
