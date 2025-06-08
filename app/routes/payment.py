@@ -4,6 +4,7 @@
   • POST /payment/       → 결제 처리 → /payment/done
   • GET  /payment/done   → 결제 완료 화면
 """
+import sys # Added for logging
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 # Removed: uuid, random, csv, os as their functionality is moved to service
 
@@ -27,6 +28,9 @@ def payment():
     """
     결제 폼 & 처리
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.payment(args={{_func_args}})")
     department = session.get("department")
     if not department:
         return redirect(url_for("reception.reception"))
@@ -88,6 +92,9 @@ def payment():
 
 @payment_bp.route("/load_prescriptions", methods=["GET"])
 def load_prescriptions():
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.load_prescriptions(args={{_func_args}})")
     department = session.get("department")
     if not department:
         return jsonify({"error": "Department not selected", "prescriptions": [], "total_fee": 0}), 400
@@ -179,6 +186,9 @@ def done():
     """
     결제 완료 화면
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.done(args={{_func_args}})")
     pay_id = request.args.get("pay_id", "")
     payment_record = get_payment_details(pay_id)
 

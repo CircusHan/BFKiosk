@@ -1,4 +1,5 @@
 # app/routes/reception.py
+import sys # Added for logging
 from flask import Blueprint, render_template, request, session
 
 # Import service functions and SYMPTOMS list
@@ -21,6 +22,9 @@ reception_bp = Blueprint('reception', __name__, url_prefix="/reception", templat
 
 @reception_bp.route("/", methods=["GET", "POST"]) # Changed to "/" assuming url_prefix handles /reception
 def reception():
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.reception(args={{_func_args}})")
     if request.method == "POST":
         action = request.form.get("action")
 

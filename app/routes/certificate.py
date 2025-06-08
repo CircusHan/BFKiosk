@@ -1,5 +1,7 @@
 import io # Will be used for BytesIO for PDF generation
 # from datetime import datetime # For filename timestamp - now handled by service
+import inspect # Added for logging
+import sys # Added for logging
 from flask import (
     Blueprint, render_template, session, redirect, url_for, Response
 )
@@ -29,6 +31,9 @@ def certificate():
     """
     Renders the main certificate choice page.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.certificate(args={{_func_args}})")
     return render_template("certificate.html")
 
 
@@ -37,6 +42,9 @@ def generate_prescription_pdf():
     """
     Generates a prescription PDF.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.generate_prescription_pdf(args={{_func_args}})")
     patient_name = session.get("patient_name")
     patient_rrn = session.get("patient_rrn")
     department = session.get("department")
@@ -97,6 +105,9 @@ def generate_confirmation_pdf():
     """
     Generates a medical confirmation PDF.
     """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.generate_confirmation_pdf(args={{_func_args}})")
     patient_name = session.get("patient_name")
     patient_rrn = session.get("patient_rrn")
     department = session.get("department") # Used as "병명" (diagnosis/reason for visit)
