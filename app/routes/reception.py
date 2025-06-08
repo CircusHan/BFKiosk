@@ -7,7 +7,8 @@ from app.services.reception_service import (
     handle_scan_action,
     handle_manual_action,
     handle_choose_symptom_action,
-    SYMPTOMS  # SYMPTOMS is imported for use in the template
+    SYMPTOMS,  # SYMPTOMS is imported for use in the template
+    update_reservation_status # Added this import
 )
 
 reception_bp = Blueprint('reception', __name__, url_prefix="/reception", template_folder='../../templates')
@@ -35,9 +36,11 @@ def reception():
             session['patient_rrn'] = scan_result["rrn"]
 
             if scan_result["reservation_details"]:
+                update_reservation_status(scan_result["rrn"], 'Registered') # <--- ADDED THIS
                 return render_template("reception.html", step="reserved",
                                        **scan_result["reservation_details"])
             else:
+                # If no reservation, they proceed to symptom choice. Status will be updated there.
                 return render_template("reception.html", step="symptom",
                                        name=scan_result["name"], rrn=scan_result["rrn"], symptoms=SYMPTOMS)
 
@@ -56,9 +59,11 @@ def reception():
             reservation_details = handle_manual_action(name, rrn) # Service returns dict or None
 
             if reservation_details:
+                update_reservation_status(rrn, 'Registered') # <--- ADDED THIS
                 return render_template("reception.html", step="reserved",
                                        **reservation_details)
             else:
+                # If no reservation, they proceed to symptom choice. Status will be updated there.
                 return render_template("reception.html", step="symptom",
                                        name=name, rrn=rrn, symptoms=SYMPTOMS)
 
@@ -76,6 +81,10 @@ def reception():
 
             session["department"] = symptom_result["department"]
             session["ticket"] = symptom_result["ticket"]
+
+            patient_rrn_from_session = session.get("patient_rrn") # Get rrn from session
+            if patient_rrn_from_session:
+                update_reservation_status(patient_rrn_from_session, 'Registered') # <--- ADDED THIS
 
             # Pass patient name to the ticket step as well, if needed by template
             patient_name = session.get("patient_name", "")

@@ -96,6 +96,58 @@ def new_ticket(department: str) -> str:
     return ticket_num
 
 
+def update_reservation_status(patient_rrn: str, new_status: str) -> bool:
+    """
+    Updates the status of a patient's reservation in reservations.csv.
+    """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.update_reservation_status(args={{_func_args}})")
+
+    if not os.path.exists(RESV_CSV):
+        # print(f"Error: {RESV_CSV} not found.") # Optional: for server-side logging
+        return False
+
+    rows = []
+    original_fieldnames = None
+    updated = False
+
+    try:
+        with open(RESV_CSV, mode='r', newline='', encoding='utf-8-sig') as csvfile:
+            reader = csv.DictReader(csvfile)
+            original_fieldnames = reader.fieldnames
+            # Ensure 'rrn' and 'status' are valid fieldnames
+            if not original_fieldnames or not all(field in original_fieldnames for field in ['rrn', 'status']):
+                # print("Error: CSV headers are missing 'rrn' or 'status'.") # Optional
+                return False
+            rows = list(reader)
+
+        for i, row in enumerate(rows):
+            if row.get('rrn') == patient_rrn:
+                rows[i]['status'] = new_status
+                updated = True
+                break
+
+        if updated:
+            with open(RESV_CSV, mode='w', newline='', encoding='utf-8') as csvfile:
+                if not original_fieldnames: # Should have been caught earlier
+                    return False
+                writer = csv.DictWriter(csvfile, fieldnames=original_fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            return True
+        else:
+            # print(f"Info: Patient RRN {patient_rrn} not found for status update.") # Optional
+            return False # Patient not found
+
+    except FileNotFoundError: # Should be caught by os.path.exists, but as a safeguard
+        # print(f"Error: File {RESV_CSV} disappeared during update operation.") # Optional
+        return False
+    except Exception as e:
+        # print(f"Error updating reservation status for RRN {patient_rrn}: {e}") # Optional
+        return False
+
+
 # Service action functions
 
 def handle_scan_action() -> dict:

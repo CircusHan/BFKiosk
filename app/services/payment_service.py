@@ -84,6 +84,7 @@ def update_reservation_with_payment_details(patient_rrn: str, prescription_names
                     rows[row_idx]['prescription_names'] = "" # Empty string if list is empty or None
 
                 rows[row_idx]['total_fee'] = str(total_fee) # Store total_fee as string
+                rows[row_idx]['status'] = "Paid" # <--- ADDED THIS LINE
                 updated = True
                 break
 
