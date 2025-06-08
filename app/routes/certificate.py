@@ -134,19 +134,30 @@ def generate_confirmation_pdf():
     print(f"ENTERING: {_module_path}.generate_confirmation_pdf(args={{_func_args}})")
     patient_name = session.get("patient_name")
     patient_rrn = session.get("patient_rrn")
-    department = session.get("department") # Used as "병명" (diagnosis/reason for visit)
+    # department = session.get("department") # Removed
 
     if not all([patient_name, patient_rrn]):
         return redirect(url_for("reception.reception", error="patient_info_missing"))
 
-    if not department: # Department is essential for "병명"
-        return redirect(url_for("reception.reception", error="department_info_missing_for_confirmation"))
+    # if not department: # Removed old check
+    #     return redirect(url_for("reception.reception", error="department_info_missing_for_confirmation"))
+
+    reservation_details = lookup_reservation(name=patient_name, rrn=patient_rrn)
+
+    if not reservation_details:
+        # Redirect or return error if no reservation found for the user
+        return redirect(url_for("reception.reception", error="no_reservation_for_confirmation_pdf"))
+
+    department_as_disease_name = reservation_details.get("department")
+    if not department_as_disease_name: # Check if department is empty or None
+        # Redirect or return error if department is missing in the reservation
+        return redirect(url_for("reception.reception", error="department_missing_for_confirmation_pdf"))
 
     try:
         pdf_bytes, filename = prepare_medical_confirmation_pdf(
             patient_name=patient_name,
             patient_rrn=patient_rrn,
-            disease_name=department # department is used as disease_name
+            disease_name=department_as_disease_name # Use the fetched department here
         )
         if pdf_bytes is None: # If service function couldn't generate PDF
              return render_template("error.html", message="Could not generate confirmation PDF."), 500
