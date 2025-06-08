@@ -7,8 +7,8 @@ def create_app() -> Flask:
     """
     app = Flask(
         __name__,
-        static_folder="static",
-        template_folder="templates",
+        static_folder="../static",
+        template_folder="../templates",
     )
 
     # (선택) 세션 암호키 – 실제 서비스에서는 환경 변수로 관리 권장
