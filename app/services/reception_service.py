@@ -66,7 +66,7 @@ def lookup_reservation(name: str, rrn: str) -> dict | None:
             reservations = list(csv.DictReader(f))
 
         for res in reservations:
-            if res["Name"] == name and res["RRN"] == rrn:
+            if res["name"] == name and res["rrn"] == rrn:
                 return res # Return the entire reservation dict
         return None
     except FileNotFoundError:
