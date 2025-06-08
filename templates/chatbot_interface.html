@@ -2,119 +2,15 @@
 {% block title %}AI 챗봇 상담{% endblock %}
 
 {% block content %}
-<style>
-    .chat-container {
-        display: flex;
-        flex-direction: column;
-        max-width: 800px;
-        margin: 20px auto;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        overflow: hidden;
-        font-family: Arial, sans-serif;
-    }
-    #webcamFeed {
-        width: 100%;
-        max-width: 400px;
-        height: auto;
-        display: block;
-        margin: 10px auto;
-        border: 1px solid black;
-        border-radius: 4px;
-    }
-    #chatHistory {
-        height: 370px; /* Reduced height */
-        overflow-y: auto;
-        padding: 15px;
-        border-top: 1px solid #eee;
-        border-bottom: 1px solid #eee;
-        background-color: #f9f9f9;
-        display: flex;
-        flex-direction: column;
-    }
-    .message {
-        margin-bottom: 12px;
-        padding: 10px 15px;
-        border-radius: 18px;
-        max-width: 75%;
-        line-height: 1.5;
-        word-wrap: break-word;
-    }
-    .user-message {
-        background-color: #DCF8C6;
-        align-self: flex-end;
-        margin-left: auto;
-    }
-    .bot-message {
-        background-color: #E9E9EB;
-        align-self: flex-start;
-        margin-right: auto;
-    }
-    .input-area {
-        display: flex;
-        align-items: center;
-        padding: 8px 12px; /* Reduced top/bottom padding */
-        background-color: #fff;
-    }
-    #userInput {
-        flex-grow: 1;
-        padding: 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 20px;
-        margin-right: 8px;
-        font-size: 1rem;
-    }
-    .chat-btn {
-        padding: 10px 15px;
-        border: none;
-        border-radius: 20px;
-        background-color: skyblue;
-        color: white;
-        cursor: pointer;
-        font-size: 0.9rem;
-        margin-left: 5px;
-        transition: background-color 0.2s ease;
-    }
-    .chat-btn:hover {
-        background-color: #007bff;
-    }
-    #toggleMicBtn.recording {
-        background-color: #ff4136; /* Red when recording */
-    }
-    #inputControls {
-        padding:10px;
-        text-align:center;
-        border-top: 1px solid #eee;
-    }
-    #capturedImagePreview {
-        display: none;
-        max-width: 100px;
-        max-height: 100px;
-        margin-top: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        vertical-align: middle;
-    }
-    #captureImageBtn {
-        /* Made visible for testing as requested */
-        display: inline-block;
-        margin-right: 10px;
-    }
-    .error-message {
-        color: red;
-        font-size: 0.9em;
-        padding: 5px 15px;
-    }
-</style>
 
 <div class="chat-container">
-    <h1 style="text-align: center; padding: 15px; margin:0; background-color:skyblue; color:white; font-size:1.8rem;">AI 챗봇 상담</h1>
-    <a href="{{ url_for('home.index') }}" id="homeBtn" class="chat-btn" style="position: absolute; top: 20px; left: 20px; text-decoration: none;">홈</a>
+    <h1>AI 챗봇 상담</h1>
+    <a href="{{ url_for('home.index') }}" id="homeBtn" class="btn btn-secondary btn-sm">홈</a>
 
     <video id="webcamFeed" autoplay playsinline muted></video> <!-- Added muted to avoid feedback loop if mic is open -->
 
     <div id="inputControls">
-        <button id="captureImageBtn" class="chat-btn">이미지 첨부</button>
+        <button id="captureImageBtn" class="btn">이미지 첨부</button>
         <img id="capturedImagePreview" src="#" alt="Captured Image Preview">
     </div>
 
@@ -124,8 +20,8 @@
 
     <div class="input-area">
         <input type="text" id="userInput" placeholder="메시지를 입력하세요...">
-        <button id="sendMessageBtn" class="chat-btn">전송</button>
-        <button id="toggleMicBtn" class="chat-btn">음성 입력</button>
+        <button id="sendMessageBtn" class="btn btn-primary">전송</button>
+        <button id="toggleMicBtn" class="btn">음성 입력</button>
     </div>
 </div>
 
