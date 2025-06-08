@@ -63,41 +63,48 @@ def generate_prescription_pdf():
     # if last_prescriptions_from_session is None or last_total_fee_from_session is None: # Removed block
     #     return redirect(url_for("payment.payment", error="prescription_data_missing_from_session"))
 
-    prescription_details = get_prescription_data_for_pdf(
-        patient_rrn=patient_rrn, # Changed
-        department=department  # Changed
+    status_code, result_payload = get_prescription_data_for_pdf(
+        patient_rrn=patient_rrn,
+        department=department
     )
 
-    if not prescription_details:
-        # This case handles if get_prescription_data_for_pdf returns None
-        # (e.g., patient not in reservations.csv, CSV error in service, or no prescription files)
-        # Redirecting to reception or a generic error page might be more appropriate
-        # than payment, as payment data might not be the issue anymore.
-        # For now, keeping the error message generic.
-        return render_template("error.html", message="진료확인서 발급에 필요한 처방 상세 정보를 불러오지 못했습니다. 해당 환자의 예약 정보 또는 처방전 데이터 파일을 확인해주세요."), 500
-        # Previous redirect: url_for("payment.payment", error="failed_to_load_prescription_details")
+    if status_code == "OK":
+        prescription_details = result_payload # This is the actual data dictionary
+        try:
+            pdf_bytes, filename = prepare_prescription_pdf(
+                patient_name=patient_name,
+                patient_rrn=patient_rrn,
+                department=department, # department is still available from session/initial check
+                prescription_details=prescription_details
+            )
+            if pdf_bytes is None:
+                # This specific error indicates a failure within prepare_prescription_pdf itself,
+                # not necessarily an issue with data fetching (which status_code would have caught).
+                return render_template("error.html", message="PDF 생성 중 내부 오류가 발생했습니다. (Prepare stage)"), 500
+
+        except MissingKoreanFontError as e:
+            return render_template("error.html", message=str(e)), 500
+
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'inline;filename={filename}'}
+        )
+    # Handle error cases based on status_code from get_prescription_data_for_pdf
+    elif status_code in ["NEEDS_PAYMENT", "ZERO_FEE_PAID"]:
+        # These are client-side correctable or informational errors
+        return render_template("error.html", message=result_payload), 400
+    elif status_code in ["NOT_FOUND", "FILE_NOT_FOUND", "DATA_ERROR"]:
+        # These are server-side or data integrity issues
+        return render_template("error.html", message=result_payload), 500
+    else:
+        # Catch-all for any other unexpected status codes from the service
+        return render_template("error.html", message="알 수 없는 오류가 발생했습니다. 관리자에게 문의하세요."), 500
 
     # session.pop("last_prescriptions", None) # Removed
     # session.pop("last_total_fee", None) # Removed
-
-    try:
-        pdf_bytes, filename = prepare_prescription_pdf(
-            patient_name=patient_name,
-            patient_rrn=patient_rrn,
-            department=department,
-            prescription_details=prescription_details
-        )
-        if pdf_bytes is None: # If service function couldn't generate PDF
-            return render_template("error.html", message="Could not generate prescription PDF."), 500
-
-    except MissingKoreanFontError as e:
-        return render_template("error.html", message=str(e)), 500
-
-    return Response(
-        pdf_bytes, # pdf_bytes is already BytesIO object from service
-        mimetype='application/pdf',
-        headers={'Content-Disposition': f'inline;filename={filename}'}
-    )
+    # This part is unreachable due to the if/elif/else structure covering all status_code paths.
+    # The try/except for PDF generation is now within the "OK" block.
 
 
 @certificate_bp.route("/medical_confirmation/", methods=["GET"])
