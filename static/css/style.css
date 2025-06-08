@@ -1,5 +1,5 @@
 /* --------------------------------------------------------
-   RESET (Modified)
+   RESET (필요 시 사용 – 중복 정의되면 지워도 무방)
 ----------------------------------------------------------- */
 *,
 *::before,
@@ -9,41 +9,33 @@
   padding: 0;
 }
 
-html {
+html, body {
   height: 100%;
-}
-
-/* 1. Base and Typography */
-body {
-  height: 100%;
-  font-family: 'NanumSquareNeo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  /* 시스템 글꼴 우선 + 한글 대응 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
   "Helvetica Neue", Arial, "Noto Sans KR", "Apple SD Gothic Neo",
   "Malgun Gothic", sans-serif;
-  background-color: #ffffff;
-  color: #333333;
-  line-height: 1.6;
-  font-size: 16px;
+  background: #f4f7fa;
+  color: #222;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  margin-top: 1.5em;
-  margin-bottom: 0.75em;
-  font-weight: 600;
-  color: #1a202c;
-  line-height: 1.2;
+/* --------------------------------------------------------
+   GLOBAL FONT-SIZE SCALE  (★ 추가된 핵심 부분)
+----------------------------------------------------------- */
+body.font-small  { font-size: 14px; }   /* 전체 14 px 기준 */
+body.font-normal { font-size: 16px; }   /* 전체 16 px 기준 (기본) */
+body.font-large  { font-size: 20px; }   /* 전체 20 px 기준 */
+
+body.font-small  *,
+body.font-normal *,
+body.font-large  * {
+  /* 어떤 요소든 고정 px 로 지정돼 있더라도 부모 크기를 상속 */
+  font-size: inherit !important;
 }
 
-h1 { font-size: 2.25rem; }
-h2 { font-size: 1.75rem; }
-h3 { font-size: 1.5rem; }
-h4 { font-size: 1.25rem; }
-h5 { font-size: 1rem; }
-h6 { font-size: 0.875rem; }
-
-/* 2. Color Palette (Primary: #007bff, Secondary: #6c757d, etc.) */
-/* Colors are applied directly in relevant rules. */
-
-/* 3. Layout and Spacing */
+/* --------------------------------------------------------
+   레이아웃 공통
+----------------------------------------------------------- */
 .fixed-header {
   position: fixed;
   top: 0;
@@ -51,360 +43,198 @@ h6 { font-size: 0.875rem; }
   width: 100%;
   height: 60px;
   background: #ffffff;
-  border-bottom: 1px solid #dee2e6;
-  box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+  border-bottom: 1px solid #d7e1ec;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 15px;
+  padding: 0 12px;
   z-index: 1000;
 }
 
 main {
-  padding-top: 80px; /* Header is 60px + 20px spacing */
-  padding-bottom: 40px;
-  width: 100%;
+  padding-top: 70px; /* 헤더 높이만큼 내려서 내용 가림 방지 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: calc(100vh - 60px);
-}
-
-.container {
-  width: 90%;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 15px;
-  padding-right: 15px;
-}
-
-/* 4. Buttons */
-button, .btn {
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: 0.375rem; /* 6px */
-  padding: 0.75rem 1.5rem; /* 12px 24px */
-  font-size: 1rem; /* 16px */
-  font-weight: 600;
-  background-color: #007bff;
-  color: #ffffff;
-  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  text-decoration: none;
-  display: inline-block;
-  line-height: 1.5;
-  text-align: center;
-  vertical-align: middle;
-}
-
-button:hover, .btn:hover {
-  background-color: #0056b3;
-  border-color: #0056b3; /* Ensure border color changes on hover for outline buttons that gain background */
-  color: #ffffff;
-}
-
-button:active, .btn:active {
-  background-color: #004085;
-  border-color: #004085;
-}
-
-button:disabled, .btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  /* Keep explicit background/border for disabled state if not relying on opacity alone */
-  background-color: #007bff;
-  border-color: #007bff;
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  border-color: #6c757d;
-  color: #ffffff;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-  border-color: #545b62;
-  color: #ffffff;
-}
-.btn-secondary:active {
-  background-color: #545b62;
-  border-color: #4e555b;
-}
-
-.btn-outline-primary {
-  background-color: transparent;
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.btn-outline-primary:hover {
-  background-color: #007bff;
-  color: #ffffff;
-}
-
-/* Button Sizes (Optional - Add if needed for variations) */
-.btn-lg {
-  padding: 0.85rem 1.7rem;
-  font-size: 1.2rem;
-}
-
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-}
-
-/* 5. Forms */
-input[type="text"],
-input[type="password"],
-input[type="email"],
-input[type="number"],
-input[type="search"],
-textarea,
-select {
-  display: block;
-  width: 100%;
-  padding: 0.5rem 0.75rem; /* 8px 12px */
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: #495057;
-  background-color: #fff;
-  background-clip: padding-box;
-  border: 1px solid #ced4da;
-  border-radius: 0.25rem; /* 4px */
-  transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-}
-
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="email"]:focus,
-input[type="number"]:focus,
-input[type="search"]:focus,
-textarea:focus,
-select:focus {
-  border-color: #80bdff;
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-label {
-   display: inline-block;
-   margin-bottom: 0.5rem;
-   font-weight: 500;
-   color: #212529;
-}
-
-/* 6. Header specific button styling */
-.fixed-header button, .fixed-header .btn {
-   background-color: transparent;
-   color: #007bff;
-   padding: 0.5rem 0.75rem; /* Smaller padding for header buttons */
-   border: 1px solid transparent;
-   font-weight: 600;
-   font-size: 1rem; /* Standard button font size, or 0.9rem if really needed */
-}
-
-.fixed-header button:hover, .fixed-header .btn:hover {
-   background-color: #e9ecef;
-   color: #0056b3;
-   border-color: transparent; /* Keep border transparent or match hover bg */
-}
-.fixed-header button:active, .fixed-header .btn:active {
-   background-color: #d3d9df;
-   color: #004085;
-   border-color: transparent;
-}
-
-.fixed-header button img {
-   width: 22px;
-   height: 22px;
-   vertical-align: middle;
+  min-height: calc(100% - 70px);
 }
 
 /* --------------------------------------------------------
-   Home Page Styles
+   버튼 – 전체 공통
+----------------------------------------------------------- */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 600;
+  background: #2b82f6;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+button:hover      { background: #1f6fe0; }
+button:active     { background: #185ec2; }
+button:disabled   { opacity: 0.5; cursor: not-allowed; }
+
+header button img {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------
+   홈 화면(예시) 전용
 ----------------------------------------------------------- */
 .home-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem; /* Adjusted gap for better spacing */
+  gap: 28px;
   margin-top: 40px;
-  padding-left: 15px;
-  padding-right: 15px;
-  text-align: center; /* Center align content within home-container */
 }
 
 .logo-and-title img {
-  width: 120px; /* Or adjust as per design */
+  width: 120px;
   height: auto;
-  margin-bottom: 1rem;
-}
-/* .logo-and-title h1 might inherit global h1, or can be styled specifically */
-
-.button-group {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem; /* Space between buttons */
-    width: 100%;
-    max-width: 320px; /* Max width for the button group */
 }
 
-/* Home page buttons are larger, using .btn-lg */
-.button-group .btn {
-  width: 100%; /* Buttons take full width of their container */
-  /*padding and font-size will come from .btn and .btn-lg */
+.button-group button {
+  width: 300px;
+  font-size: 1.4rem;
 }
 
 /* --------------------------------------------------------
-   Utility Classes
+   유틸리티 (옵션)
 ----------------------------------------------------------- */
 .text-center { text-align: center !important; }
-.mt-1 { margin-top: 0.25rem !important; }
-.mt-2 { margin-top: 0.5rem !important; }
-.mt-3 { margin-top: 1rem !important; }
-.mt-4 { margin-top: 1.5rem !important; }
-.mt-5 { margin-top: 3rem !important; }
+.mt-2  { margin-top:  0.5rem !important; }
+.mt-4  { margin-top:  1rem   !important; }
+.mb-2  { margin-bottom: 0.5rem !important; }
+.mb-4  { margin-bottom: 1rem   !important; }
 
-.mb-1 { margin-bottom: 0.25rem !important; }
-.mb-2 { margin-bottom: 0.5rem !important; }
-.mb-3 { margin-bottom: 1rem !important; }
-.mb-4 { margin-bottom: 1.5rem !important; }
-.mb-5 { margin-bottom: 3rem !important; }
+/* END OF FILE */
 
-.ml-auto { margin-left: auto !important; }
-.mr-auto { margin-right: auto !important; }
-
-/* --------------------------------------------------------
-   AI Chatbot Styles
------------------------------------------------------------ */
-/* Styles for elements often set via JS/HTML style attributes (position, display) are commented out or removed
-   if they are better managed by JS for dynamic visibility. Focus here is on theme/appearance. */
-
+/* AI Chatbot Styles */
 #aiChatbotInvokeButton {
-    /* Assuming this is a <button> element, it will inherit .btn styles. */
-    /* If it needs to be round and have a specific size, override here or add a specific class. */
-    /* Example for a round, icon-like button (if not using .btn defaults): */
-    /* width: 60px; height: 60px; border-radius: 50%; padding: 0; font-size: 1.5rem; */
-    /* For now, let's assume it's a standard button and might have .btn-primary */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    /* If it has an icon, ensure icon color contrasts with button background */
+    /* position: fixed; bottom: 20px; right: 20px; */ /* Already set in HTML style attribute */
+    /* width: 60px; height: 60px; */ /* Already set in HTML style attribute */
+    /* border-radius: 50%; */ /* Already set in HTML style attribute */
+    /* background-color: #007bff; */ /* Already set in HTML style attribute */
+    /* color: white; */ /* Already set in HTML style attribute */
+    /* font-size: 24px; */ /* Already set in HTML style attribute, consider removing from here if style attr is primary */
+    /* border: none; */ /* Already set in HTML style attribute */
+    /* cursor: pointer; */ /* Already set in HTML style attribute */
+    /* z-index: 1000; */ /* Already set in HTML style attribute */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2); /* Additive style */
 }
 
-/* #aiChatbotModal: Defines the fullscreen overlay. Managed by JS for display. */
-/* background-color: rgba(0,0,0,0.5); z-index: 1001; */
+#aiChatbotModal {
+    /* display: none; */ /* Already set in HTML style attribute, managed by JS */
+    /* position: fixed; top: 0; left: 0; width: 100%; height: 100%; */ /* Already set in HTML style attribute */
+    /* background-color: rgba(0,0,0,0.5); */ /* Already set in HTML style attribute */
+    /* z-index: 1001; */ /* Already set in HTML style attribute */
+    /* justify-content: center; align-items: center; */ /* Already set in HTML style attribute */
+    /* These styles in the HTML are fine, but for consistency, could be moved here */
+}
 
-#aiChatbotModal > div { /* Modal content box */
-    background-color: #ffffff;
-    padding: 1.5rem; /* Consistent padding */
-    border-radius: 0.5rem; /* Consistent with new border-radius (8px) */
-    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-    width: 90%; /* Responsive width */
-    max-width: 500px; /* Max width */
-    display: flex;
-    flex-direction: column;
-    height: 90vh; /* Max height relative to viewport */
-    max-height: 700px; /* Absolute max height */
-    position: relative; /* For absolute positioning of close button */
+#aiChatbotModal > div { /* This is the modal content box */
+    /* background-color: white; padding: 20px; border-radius: 10px; */ /* Already set in HTML style attribute */
+    /* width: 80%; max-width: 500px; */ /* Already set in HTML style attribute */
+    /* display: flex; flex-direction: column; height: 90%; */ /* Already set in HTML style attribute */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* Additive style */
 }
 
 #aiChatbotCloseButton {
-    background: transparent;
-    color: #6c757d; /* Secondary text color */
-    border: none;
-    font-size: 1.75rem; /* Larger for easier clicking, using rem */
-    font-weight: 600;
-    padding: 0.5rem; /* Minimal padding */
-    line-height: 1;
-    position: absolute;
-    top: 0.75rem; /* Position relative to padding of modal content box */
-    right: 0.75rem;
-    cursor: pointer;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+    /* align-self: flex-end; background: none; border: none; font-size: 20px; cursor: pointer; */ /* Mostly set in HTML */
+    padding: 5px;
+    color: #777;
+    /* Ensure button reset doesn't override too much from global button style */
+    background: none !important;
+    font-size: 20px !important; /* Overriding global button font-size if necessary */
+    font-weight: bold !important; /* Making X more prominent */
+    color: #777 !important;
 }
 #aiChatbotCloseButton:hover {
-    color: #333333;
-    background-color: #f8f9fa; /* Light hover effect */
+    color: #333 !important;
+    background: none !important;
 }
 
 #aiChatbotVideo {
-    width: 100%;
-    max-height: 250px; /* Or desired height */
-    background-color: #e9ecef; /* Light grey background */
-    margin-bottom: 1rem;
-    border-radius: 0.25rem; /* Consistent with input fields */
-    border: 1px solid #dee2e6; /* Subtle border */
-    object-fit: cover;
+    /* width: 100%; height: 200px; background-color: #eee; margin-bottom: 10px; */ /* From HTML */
+    /* display: flex; justify-content: center; align-items: center; */ /* From HTML */
+    border-radius: 5px;
+    color: #555;
 }
 
 #aiChatbotChatbox {
     flex-grow: 1;
-    border: 1px solid #dee2e6;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
     overflow-y: auto;
-    background-color: #f8f9fa; /* Lighter background for chat area */
-    border-radius: 0.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem; /* Space between messages */
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    display: flex; /* To allow alignment of messages */
+    flex-direction: column; /* Stack messages vertically */
 }
 
 .ai-chatbot-message {
-    padding: 0.65rem 1rem;
-    border-radius: 1rem; /* More rounded messages */
-    max-width: 85%; /* Slightly increased max-width */
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 15px;
+    max-width: 80%;
     word-wrap: break-word;
-    line-height: 1.5;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.075); /* Softer shadow */
+    line-height: 1.4; /* Improved readability */
 }
 
 .ai-user-message {
-    background-color: #007bff; /* Primary color */
+    background-color: #007bff;
     color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 0.25rem; /* Flatter corner for "sent" feel */
+    align-self: flex-end; /* Aligns to the right */
+    border-bottom-right-radius: 5px;
 }
 
 .ai-bot-message {
-    background-color: #ffffff; /* Bot messages on white */
-    color: #333333;
-    align-self: flex-start;
-    border: 1px solid #e9ecef; /* Subtle border for bot messages */
-    border-bottom-left-radius: 0.25rem; /* Flatter corner for "received" feel */
+    background-color: #e9ecef;
+    color: #333;
+    align-self: flex-start; /* Aligns to the left */
+    border-bottom-left-radius: 5px;
 }
 
 #aiChatbotInputContainer {
     display: flex;
-    gap: 0.5rem; /* Gap between input and button */
-    margin-top: auto; /* Pushes to bottom if chatbox is not full */
-    align-items: center; /* Align items vertically */
+    margin-top: auto;
 }
 
-#aiChatbotInput { /* Inherits new form input styles */
+#aiChatbotInput {
     flex-grow: 1;
-    /* Specific overrides if default form input style is not perfect: */
-    /* e.g., margin-bottom: 0; if its parent container handles spacing */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    /* font-size will be inherited due to body.font-* !important */
 }
 
-#aiChatbotSendButton { /* Inherits .btn and button styles */
-    /* Specific overrides if default button style is not perfect: */
-    flex-shrink: 0; /* Prevent button from shrinking */
-    /* e.g., use .btn-primary if not default, or .btn-sm if smaller button desired */
+#aiChatbotSendButton {
+    /* padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; margin-left: 5px; cursor: pointer; */ /* From HTML */
+    padding: 10px 15px; /* Adjusted padding slightly */
+    /* font-size will be inherited */
+    /* background-color from global button, or override if needed */
+    /* color from global button */
+}
+#aiChatbotSendButton:hover {
+    background-color: #0056b3; /* Global button hover is #1f6fe0, this is a bit darker */
 }
 
+/* Potentially for STT/TTS status or other messages */
 .ai-chatbot-status {
-    font-size: 0.875rem;
-    color: #6c757d; /* Secondary text color */
+    /* font-size: 0.9em !important; */ /* Will inherit, !important might be too strong */
+    color: #666;
     text-align: center;
-    padding: 0.5rem 0;
-    min-height: 1.5em; /* Reserve space even if empty */
-    margin-top: 0.5rem;
+    padding: 5px 0;
+    min-height: 1.5em; /* Reserve space */
 }
 
-#chatbotCaptureCanvas { /* For video frame capture, likely hidden */
+/* Canvas for video capture if used, initially hidden */
+#chatbotCaptureCanvas {
     display: none;
 }
-
-/* END OF FILE */
