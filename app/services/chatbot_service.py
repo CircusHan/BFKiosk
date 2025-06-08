@@ -385,6 +385,7 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
             return {"error": "처방 정보 조회 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
 
     elif payment_stage == "confirmation":
+        print("confirmation mode")
         if not payment_method:
             return {"reply": "결제 수단을 말씀해주세요 (예: 현금 또는 카드)."}
         if payment_method not in ["cash", "card"]:
@@ -399,6 +400,9 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
         if prescription_info.get("error"):
             return {"reply": f"처방 정보를 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
 
+        print(prescription_info)
+
+        
         # Correctly get the list of detailed prescription objects
         detailed_prescriptions = prescription_info.get("prescriptions_for_display", [])
 
