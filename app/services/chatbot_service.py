@@ -327,14 +327,20 @@ def handle_payment_request(parameters: dict, user_query: str) -> dict:
             if prescription_info.get("error"):
                 return {"reply": f"처방 정보를 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
 
-            prescriptions_for_display_list = prescription_info.get("prescriptions_for_display", [])
-            total_fee = prescription_info.get("total_fee")
+            # Correctly get the list of detailed prescription objects
+            detailed_prescriptions = prescription_info.get("prescriptions_for_display", [])
+
+            # Format the prescriptions for display.
+            # This relies on payment_service.load_department_prescriptions correctly providing 'name' and 'fee'
+            # in the dictionaries within the 'prescriptions_for_display' list.
+            formatted_prescriptions = "\n".join([f"- {item['name']}: {item['fee']}원" for item in detailed_prescriptions])
+
+            # Get other necessary info from prescription_info
             actual_prescription_names = prescription_info.get("prescription_names", [])
+            total_fee = prescription_info.get("total_fee")
 
-            if total_fee is None:
+            if total_fee is None: # Keep existing check for total_fee
                  return {"error": "처방 정보에서 총 금액을 가져올 수 없습니다.", "status_code": 500}
-
-            formatted_prescriptions = "\n".join([f"- {item['name']}: {item['fee']}원" for item in prescriptions_for_display_list])
 
             reply_message = (
                 f"{name}님의 처방 내역입니다:\n{formatted_prescriptions}\n"

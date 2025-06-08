@@ -156,7 +156,7 @@ def load_department_prescriptions(department: str) -> dict:
 
         total_fee = sum(item["fee"] for item in selected_prescriptions_objects)
         prescriptions_for_display = [
-            {"Prescription": item["name"], "Fee": item["fee"]} for item in selected_prescriptions_objects
+            {"name": item["name"], "fee": item["fee"]} for item in selected_prescriptions_objects
         ]
         prescription_names = [item['name'] for item in selected_prescriptions_objects]
 
