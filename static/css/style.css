@@ -47,6 +47,7 @@ body.font-large  * {
   border-bottom: 1px solid #d7e1ec;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 0 12px;
   z-index: 1000;
