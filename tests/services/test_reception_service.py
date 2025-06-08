@@ -14,7 +14,7 @@ from app.services.reception_service import (
     SYM_TO_DEPT # Import for context if needed
 )
 
-MOCK_RESERVATIONS_CSV_DATA = """Name,RRN,Department,Time,Location,Doctor
+MOCK_RESERVATIONS_CSV_DATA = """name,rrn,department,time,location,doctor
 김예약,850101-1234567,내과,10:00,본관1층,닥터김
 박테스트,920202-2345678,외과,14:30,별관2층,닥터박
 """
@@ -32,9 +32,9 @@ class TestReceptionService(unittest.TestCase):
         result = lookup_reservation(name, rrn)
 
         self.assertIsNotNone(result)
-        self.assertEqual(result["Name"], name) # CSV DictReader uses original header names
-        self.assertEqual(result["RRN"], rrn)
-        self.assertEqual(result["Department"], "내과")
+        self.assertEqual(result["name"], name)
+        self.assertEqual(result["rrn"], rrn)
+        self.assertEqual(result["department"], "내과")
 
     @patch('app.services.reception_service.os.path.exists', return_value=True)
     @patch('builtins.open')
