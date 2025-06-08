@@ -2,37 +2,434 @@ import os
 import base64
 import google.generativeai as genai
 import sys # Added for logging
+import json # Added for JSON parsing
 # import io # Not strictly needed for current logic but good for future image manipulation
 
+from app.services.reception_service import (
+    lookup_reservation,
+    SYMPTOMS,
+    SYM_TO_DEPT,
+    handle_choose_symptom_action,
+    add_new_patient_reception,
+    # fake_scan_rrn # Not using fake_scan_rrn in this path for now
+)
+from app.services.payment_service import (
+    load_department_prescriptions,
+    update_reservation_with_payment_details
+)
+from app.services.certificate_service import (
+    get_prescription_data_for_pdf,
+    prepare_prescription_pdf,
+    prepare_medical_confirmation_pdf
+)
+from app.utils.pdf_generator import MissingKoreanFontError
+# base64 is already imported at the top of the file, so no need to re-import here.
+
 # Corrected SYSTEM_INSTRUCTION_PROMPT based on original chatbot.py
-SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절하고 유능한 AI 안내원 '늘봄이'입니다. 당신의 주요 임무는 보건소 방문객들에게 필요한 정보와 지원을 제공하는 것입니다.
+SYSTEM_INSTRUCTION_PROMPT = """당신은 대한민국 공공 보건소의 친절하고 유능한 AI 안내원 '늘봄이'입니다. 당신의 임무는 사용자의 요청을 이해하고, 적절한 서비스로 안내하거나 일반적인 질문에 답변하는 것입니다.
 
-**당신의 역할:**
-- 보건소의 다양한 서비스, 부서, 진료 절차, 건강 프로그램 등에 대한 정보를 제공합니다.
-- 방문객의 질문에 명확하고 간결하며 이해하기 쉽게 답변합니다.
-- 항상 친절하고 공손한 태도를 유지하며, 방문객이 편안함을 느낄 수 있도록 돕습니다.
-- 복잡하거나 민감한 문의에 대해서는 적절한 보건소 직원에게 안내하거나, 추가 정보를 찾아볼 수 있는 방법을 제시합니다.
-- 응급 상황 시 대처 요령을 안내하고, 필요시 즉시 도움을 요청할 수 있도록 안내합니다. (예: "즉시 119에 전화하시거나 가장 가까운 직원에게 알려주세요.")
-- 개인적인 의학적 진단이나 처방은 제공하지 않으며, "의사 또는 전문 의료인과 상담하시는 것이 가장 좋습니다."와 같이 안내합니다.
-- 당신의 답변은 한국어로 제공되어야 합니다.
+**주요 작업:**
 
-**응답 스타일:**
-- 긍정적이고 따뜻한 어조를 사용합니다.
-- 가능한 한 전문 용어 사용을 피하고, 쉬운 단어로 설명합니다.
-- 필요한 경우, 정보를 단계별로 안내하여 방문객이 쉽게 따라올 수 있도록 합니다.
-- 이모티콘이나 과도한 감탄사 사용은 자제하고, 전문성을 유지합니다.
+1.  **의도 파악:** 사용자의 요청이 일반 문의인지 또는 특정 서비스 요청인지 식별합니다.
+    *   서비스 종류: "접수 (Reception)", "수납 (Payment)", "증명서 발급 (Certificate Issuance)"
 
-**제한 사항:**
-- 보건소 업무와 관련 없는 농담이나 사적인 대화는 지양합니다.
-- 개인정보를 묻거나 저장하지 않습니다.
-- 정치적, 종교적 또는 논란의 여지가 있는 주제에 대해서는 중립적인 입장을 취하거나 답변을 정중히 거절합니다. ("죄송하지만, 해당 질문에 대해서는 답변드리기 어렵습니다.")
+2.  **파라미터 추출 (서비스 요청 시):** 사용자의 메시지에서 다음 정보를 추출합니다. 모든 파라미터는 선택 사항이며, 사용자가 언급한 경우에만 포함합니다.
+    *   `name` (문자열, 예: "홍길동")
+    *   `rrn` (문자열, 주민등록번호, 형식: xxxxxx-xxxxxxx, 예: "900101-1234567")
+    *   `symptom` (문자열, 예: "두통", "기침", "감기", 가능한 경우 미리 정의된 목록 사용) - 접수 시에만 해당
+    *   `department` (문자열, 예: "내과", "소아과") - 사용자가 특정 부서를 언급한 경우
+    *   `certificate_type` (다음 중 하나: "prescription" (처방전), "confirmation" (진료확인서)) - 증명서 발급 시에만 해당
+    *   `payment_stage` (다음 중 하나: "initial" (결제 시작), "confirmation" (결제 수단 확인)) - 수납 시에만 해당
+    *   `payment_method` (다음 중 하나: "cash" (현금), "card" (카드)) - 수납 확인(confirmation) 단계에서만 해당
 
-**이미지 입력 처리 (해당되는 경우):**
-- 사용자가 이미지를 제공하면, 이미지의 내용을 이해하고 관련된 질문에 답변할 수 있습니다. (예: "이것은 무슨 약인가요?" 또는 "이 증상에 대해 알려주세요.")
-- 이미지에 있는 글자를 읽고 해석할 수 있습니다.
-- 이미지에 대한 분석이 불가능하거나 부적절한 경우, 정중하게 추가 정보를 요청하거나 답변할 수 없음을 알립니다.
+3.  **JSON 응답 형식 (서비스 요청 시):** 서비스 요청의 경우, 다음과 같은 JSON 형식으로 응답해야 합니다.
+    ```json
+    {
+      "intent": "reception" | "payment" | "certificate" | "general",
+      "parameters": {
+        "name": "...",
+        "rrn": "...",
+        "symptom": "...",
+        "department": "...",
+        "certificate_type": "...",
+        "payment_stage": "...",
+        "payment_method": "..."
+      },
+      "user_query": "사용자의 원본 메시지 전체"
+    }
+    ```
+    *   `intent`는 식별된 서비스 또는 "general"로 설정합니다.
+    *   `parameters` 객체에는 추출된 정보만 포함합니다. 값이 없는 파라미터는 생략합니다.
+    *   `user_query`에는 사용자의 원본 메시지를 그대로 전달합니다.
 
-이제 방문객의 질문에 답변해주세요."""
+4.  **JSON 응답 형식 (일반 문의 시):** 사용자의 요청이 특정 서비스와 관련 없는 일반 문의인 경우, 다음과 같은 JSON 형식으로 응답해야 합니다.
+    ```json
+    {
+      "intent": "general",
+      "reply": "늘봄이가 제공하는 일반적인 답변입니다."
+    }
+    ```
+    *   `reply` 필드에 직접적인 텍스트 답변을 제공합니다.
+
+**세부 지침:**
+
+*   **언어:** 모든 답변은 한국어로 제공합니다.
+*   **챗봇 이름:** 당신의 이름은 '늘봄이'입니다.
+*   **정보 요청 (누락 시):**
+    *   **접수:** `name` 또는 `rrn`이 제공되지 않으면, 정중하게 요청합니다. (예: "접수를 위해 성함과 주민등록번호를 말씀해주시겠어요?")
+    *   **수납:** 진료 기록 조회 등을 위해 `name` 또는 `rrn`이 필요하다고 판단되면, 정중하게 요청합니다. (예: "수납 처리를 위해 성함이나 주민등록번호를 알려주시겠어요?")
+*   **수납 단계 (Payment Stage):**
+    *   사용자가 처음 수납을 요청하면 `payment_stage`를 "initial"로 설정합니다.
+    *   사용자가 결제 수단(현금, 카드 등)을 언급하며 확인을 요청하면 `payment_stage`를 "confirmation"으로 설정하고 `payment_method`를 추출합니다. **이때, 이전 단계에서 안내된 `total_fee` (총액) 및 `prescription_names` (처방약 목록)을 사용자가 다시 언급하거나 확인하는 경우, 해당 정보도 함께 추출하도록 노력해야 합니다.**
+*   **개인정보 보호:**
+    *   개인적인 의학적 진단이나 처방은 제공하지 않으며, "의사 또는 전문 의료인과 상담하시는 것이 가장 좋습니다."와 같이 안내합니다.
+    *   수집된 개인정보는 해당 서비스 처리 목적으로만 사용됨을 명시할 수 있습니다 (필요시).
+*   **응답 스타일:**
+    *   항상 친절하고 공손한 태도를 유지합니다.
+    *   명확하고 간결하며 이해하기 쉽게 답변합니다.
+    *   긍정적이고 따뜻한 어조를 사용합니다.
+    *   전문 용어 사용을 피하고, 쉬운 단어로 설명합니다.
+
+**예시 시나리오:**
+
+*   사용자: "안녕하세요, 오늘 진료 접수하고 싶어요."
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "reception",
+      "parameters": {},
+      "user_query": "안녕하세요, 오늘 진료 접수하고 싶어요."
+    }
+    ```
+    늘봄이 (후속 질문): "네, 안녕하세요! 접수를 도와드릴게요. 성함과 주민등록번호를 말씀해주시겠어요?"
+
+*   사용자: "머리가 아파서 왔는데, 홍길동이고 주민번호는 900101-1234567입니다."
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "reception",
+      "parameters": {
+        "name": "홍길동",
+        "rrn": "900101-1234567",
+        "symptom": "머리가 아픔"
+      },
+      "user_query": "머리가 아파서 왔는데, 홍길동이고 주민번호는 900101-1234567입니다."
+    }
+    ```
+
+*   사용자: "진료비 수납하려고요. 이름은 고길동, 주민번호는 850515-1987654 입니다."
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "payment",
+      "parameters": {
+        "name": "고길동",
+        "rrn": "850515-1987654",
+        "payment_stage": "initial"
+      },
+      "user_query": "진료비 수납하려고요. 이름은 고길동, 주민번호는 850515-1987654 입니다."
+    }
+    ```
+
+*   사용자: "네, 카드로 결제할게요. 금액은 35000원이고, 처방약은 감기약, 소화제 맞아요." (이전 대화에서 수납 의도, 사용자 정보, 처방내역 및 총액이 안내된 상태)
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "payment",
+      "parameters": {
+        "name": "고길동",
+        "rrn": "850515-1987654",
+        "payment_stage": "confirmation",
+        "payment_method": "card",
+        "total_fee": "35000",
+        "prescription_names": ["감기약", "소화제"]
+      },
+      "user_query": "네, 카드로 결제할게요. 금액은 35000원이고, 처방약은 감기약, 소화제 맞아요."
+    }
+    ```
+
+*   사용자: "처방전 발급해주세요."
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "certificate",
+      "parameters": {
+        "certificate_type": "prescription"
+      },
+      "user_query": "처방전 발급해주세요."
+    }
+    ```
+
+*   사용자: "오늘 보건소 운영시간 알려줘."
+    늘봄이 (JSON):
+    ```json
+    {
+      "intent": "general",
+      "reply": "네, 늘봄이가 알려드릴게요. 저희 보건소는 평일 오전 9시부터 오후 6시까지 운영합니다. 점심시간은 12시부터 1시까지입니다."
+    }
+    ```
+
+이제 사용자의 요청에 따라 위 지침을 정확히 준수하여 응답해주세요."""
+
+# Placeholder functions for handling specific intents
+def handle_reception_request(parameters: dict, user_query: str) -> dict:
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_reception_request(args={{_func_args}})")
+
+    name = parameters.get("name")
+    rrn = parameters.get("rrn")
+    symptom_param = parameters.get("symptom") # This might be a display name or a key
+
+    if not name or not rrn:
+        # This should ideally be caught by Gemini's prompting, but as a fallback.
+        return {"reply": "접수를 위해 성함과 주민등록번호를 알려주시겠어요? 예: 홍길동, 123456-1234567"}
+
+    reservation_details = lookup_reservation(name, rrn)
+
+    if reservation_details:
+        status = reservation_details.get("status")
+        dept = reservation_details.get("department", "알 수 없음")
+        ticket = reservation_details.get("ticket_number", "알 수 없음")
+
+        if status == "Registered":
+            return {"reply": f"{name}님은 이미 {dept}으로 접수되셨습니다. 대기번호는 {ticket}번 입니다. 추가 문의가 있으신가요?"}
+        elif status == "Paid":
+            return {"reply": f"{name}님은 이미 진료를 마치고 수납까지 완료하셨습니다. 증명서 발급이 필요하시면 말씀해주세요."}
+        elif status == "Cancelled":
+            return {"reply": f"{name}님의 이전 예약은 취소된 것으로 확인됩니다. 새로 접수하시겠습니까?"} # Could offer to re-register
+        else:
+            # Catch other statuses like 'Pending Payment', 'Consulting' etc.
+            return {"reply": f"{name}님의 예약 상태는 '{status}'입니다. 현재 새로 접수할 수 없거나 다른 조치가 필요합니다. 데스크에 문의해주세요."}
+
+    # No existing reservation, proceed with new registration
+    if not symptom_param:
+        available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
+        # TODO: Consider a way to present these as options if UI supports it.
+        # For now, sending as text. Gemini might be prompted to list these.
+        return {"reply": f"어떤 증상으로 방문하셨나요? 다음 중에서 선택해주세요: {available_symptoms_text} (예: 발열, 기침 등)"}
+
+    # Symptom is provided, try to map it to a valid key
+    symptom_key = None
+    if symptom_param in SYM_TO_DEPT: # If Gemini provides the key directly
+        symptom_key = symptom_param
+    else: # Try to find the key from the display name
+        for key, display_name in SYMPTOMS:
+            if symptom_param == display_name:
+                symptom_key = key
+                break
+
+    if not symptom_key:
+        available_symptoms_text = ", ".join([s[1] for s in SYMPTOMS])
+        return {"reply": f"선택하신 '{symptom_param}' 증상을 찾을 수 없습니다. 다음 증상 중에서 선택해주세요: {available_symptoms_text}"}
+
+    # Valid symptom key found, proceed to get ticket and department
+    try:
+        symptom_action_result = handle_choose_symptom_action(symptom_key)
+        department = symptom_action_result["department"]
+        ticket_number = symptom_action_result["ticket"]
+
+        # Add new patient reception
+        # Assumes add_new_patient_reception is available and works
+        success = add_new_patient_reception(name, rrn, department, ticket_number, initial_status="Registered")
+
+        if success:
+            return {"reply": f"{name}님, {department}으로 접수되셨습니다. 대기번호는 {ticket_number}번 입니다."}
+        else:
+            # This indicates an internal error (e.g., CSV write failure)
+            return {"error": "접수 처리 중 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "status_code": 500}
+    except Exception as e:
+        print(f"Error during new reception processing for {name} ({rrn}): {e}")
+        return {"error": "접수 처리 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
+
+def handle_payment_request(parameters: dict, user_query: str) -> dict:
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_payment_request(args={{_func_args}})")
+
+    name = parameters.get("name")
+    rrn = parameters.get("rrn")
+    payment_stage = parameters.get("payment_stage") # "initial" or "confirmation"
+    payment_method = parameters.get("payment_method") # "cash" or "card"
+
+    # These might be passed by Gemini in the confirmation stage from context
+    # Ensure they are retrieved here, as they are top-level in 'parameters' from Gemini
+    retrieved_total_fee_str = parameters.get("total_fee")
+    retrieved_prescription_names = parameters.get("prescription_names")
+
+
+    if not name or not rrn:
+        return {"reply": "수납을 진행하시려면 성함과 주민등록번호를 알려주세요. 예: 홍길동, 123456-1234567"}
+
+    reservation_details = lookup_reservation(name, rrn)
+
+    if not reservation_details:
+        return {"reply": "등록된 예약 정보를 찾을 수 없습니다. 먼저 접수를 진행해주세요."}
+
+    status = reservation_details.get("status")
+    department = reservation_details.get("department")
+
+    if not department:
+        return {"error": "환자의 부서 정보가 예약에 없어 수납 처리를 진행할 수 없습니다.", "status_code": 500}
+
+    if status == "Paid":
+        return {"reply": f"{name}님은 이미 수납을 완료하셨습니다."}
+    if status == "Pending":
+        return {"reply": "아직 접수가 완료되지 않았습니다. 먼저 접수를 완료해주세요."}
+    if status != "Registered":
+         return {"reply": f"{name}님의 현재 예약 상태('{status}')에서는 수납을 진행할 수 없습니다. 도움이 필요하시면 데스크에 문의해주세요."}
+
+    if payment_stage == "initial":
+        try:
+            prescription_info = load_department_prescriptions(department)
+            if prescription_info.get("error"):
+                return {"reply": f"처방 정보를 불러오는 중 오류가 발생했습니다: {prescription_info['error']}"}
+
+            prescriptions_for_display_list = prescription_info.get("prescriptions_for_display", [])
+            total_fee = prescription_info.get("total_fee")
+            actual_prescription_names = prescription_info.get("prescription_names", [])
+
+            if total_fee is None:
+                 return {"error": "처방 정보에서 총 금액을 가져올 수 없습니다.", "status_code": 500}
+
+            formatted_prescriptions = "\n".join([f"- {item['name']}: {item['fee']}원" for item in prescriptions_for_display_list])
+
+            reply_message = (
+                f"{name}님의 처방 내역입니다:\n{formatted_prescriptions}\n"
+                f"총 금액은 {total_fee}원 입니다. "
+                f"결제하시겠습니까? 그렇다면 '현금' 또는 '카드'로 결제 수단을 말씀해주시고, 처방내역과 금액도 함께 확인해주세요. (예: 카드로 결제, {total_fee}원, 처방내역: {', '.join(actual_prescription_names)})"
+            )
+            # Gemini needs to be prompted to remember/extract 'total_fee' and 'prescription_names' for the 'confirmation' stage.
+            # The actual_prescription_names (list of strings) and total_fee (number) are what need to be passed back.
+            return {"reply": reply_message}
+
+        except Exception as e:
+            print(f"Error in payment_stage 'initial' for {name} ({rrn}): {e}")
+            return {"error": "처방 정보 조회 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
+
+    elif payment_stage == "confirmation":
+        if not payment_method:
+            return {"reply": "결제 수단을 말씀해주세요 (예: 현금 또는 카드)."}
+        if payment_method not in ["cash", "card"]:
+            return {"reply": "유효한 결제 수단이 아닙니다. '현금' 또는 '카드'로 말씀해주세요."}
+
+        if retrieved_total_fee_str is None or not retrieved_prescription_names:
+            return {"reply": "결제 정보(금액 또는 처방내역)가 명확하지 않아 확인 결제를 진행할 수 없습니다. 수납 절차를 다시 시작하려면 '수납'이라고 말씀해주세요. 이전 처방내역과 금액을 확인 후 다시 요청해주세요."}
+
+        try:
+            retrieved_total_fee = int(retrieved_total_fee_str)
+        except ValueError:
+            return {"reply": "결제 금액 정보가 잘못되었습니다. 수납 절차를 다시 시작해주세요."}
+
+        final_prescription_names = []
+        if isinstance(retrieved_prescription_names, str):
+            final_prescription_names = [name.strip() for name in retrieved_prescription_names.split(',')]
+        elif isinstance(retrieved_prescription_names, list) and all(isinstance(item, str) for item in retrieved_prescription_names):
+            final_prescription_names = retrieved_prescription_names
+        else:
+             return {"reply": "처방내역 정보 형식이 올바르지 않습니다. 수납 절차를 다시 시작하여 정확한 처방내역을 확인 후 요청해주세요."}
+
+        try:
+            success = update_reservation_with_payment_details(rrn, final_prescription_names, retrieved_total_fee)
+
+            if success:
+                return {"reply": f"{name}님의 결제가 {payment_method}로 완료되었습니다. 총 {retrieved_total_fee}원이 결제되었습니다. 감사합니다."}
+            else:
+                return {"error": "결제 처리 중 내부 오류가 발생했습니다. 다시 시도해주시거나 데스크에 문의하세요.", "status_code": 500}
+        except Exception as e:
+            print(f"Error in payment_stage 'confirmation' for {name} ({rrn}): {e}")
+            return {"error": "결제 확인 처리 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
+
+    else:
+        return {"error": f"알 수 없는 결제 단계(payment_stage)입니다: '{payment_stage}'.", "status_code": 400}
+
+def handle_certificate_request(parameters: dict, user_query: str) -> dict:
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.handle_certificate_request(args={{_func_args}})")
+
+    name = parameters.get("name")
+    rrn = parameters.get("rrn")
+    certificate_type = parameters.get("certificate_type") # "prescription" or "confirmation"
+
+    if not name or not rrn:
+        return {"reply": "증명서 발급을 위해 성함과 주민등록번호를 알려주세요. 예: 홍길동, 123456-1234567"}
+
+    if not certificate_type:
+        # This case should ideally be handled by Gemini's parameter extraction or prompting logic.
+        # If certificate_type is missing, Gemini should have asked for it based on the system prompt.
+        return {"reply": "발급받으실 증명서 종류를 말씀해주세요. '처방전' 또는 '진료확인서' 중에서 선택할 수 있습니다."}
+
+    reservation_details = lookup_reservation(name, rrn)
+
+    if not reservation_details:
+        return {"reply": "등록된 예약 정보를 찾을 수 없습니다. 증명서 발급을 위해서는 접수 및 진료, 수납이 완료되어야 합니다."}
+
+    status = reservation_details.get("status")
+    # Department is needed for prescription, and used as disease_name for confirmation.
+    department = reservation_details.get("department")
+
+    if not department: # Should not happen if patient has gone through reception/payment
+        return {"error": "환자의 부서 정보가 없어 증명서 발급을 진행할 수 없습니다.", "status_code": 500}
+
+    try:
+        if certificate_type == "prescription":
+            # get_prescription_data_for_pdf itself checks if status is "Paid"
+            # and if prescription_names and total_fee exist.
+            status_code_or_ok, data = get_prescription_data_for_pdf(rrn, department)
+
+            if status_code_or_ok != "OK":
+                # 'data' contains the user-friendly error message from get_prescription_data_for_pdf
+                return {"reply": f"처방전을 발급할 수 없습니다: {data}"}
+
+            prescription_pdf_data = data # This is the dict with items and total_fee
+            pdf_bytes, filename = prepare_prescription_pdf(name, rrn, department, prescription_pdf_data)
+
+            if pdf_bytes and filename:
+                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                return {
+                    "reply": f"{name}님의 처방전 발급이 완료되었습니다. 파일명: {filename}",
+                    "pdf_filename": filename,
+                    "pdf_data_base64": pdf_base64  # For the API to send to client
+                }
+            else: # Should ideally not happen if prepare_prescription_pdf is robust
+                return {"reply": "처방전 PDF 생성 중 예상치 못한 오류가 발생했습니다."}
+
+        elif certificate_type == "confirmation":
+            # Explicit status check for medical confirmation certificate.
+            if status != "Paid":
+                error_message = "진료확인서를 발급받으려면 먼저 수납을 완료해주세요."
+                if status == "Pending": # Still at reception, not even seen by doctor
+                    error_message = "진료확인서를 발급받으려면 먼저 접수를 완료하고 진료 및 수납을 진행해주세요."
+                elif status == "Registered": # Seen by doctor, but not paid yet
+                    error_message = "진료확인서를 발급받으려면 먼저 진료 후 수납을 완료해주세요."
+                return {"reply": error_message}
+
+            # Using department as disease_name for simplicity as per original structure.
+            # In a real system, disease_name would come from medical records.
+            pdf_bytes, filename = prepare_medical_confirmation_pdf(name, rrn, department)
+
+            if pdf_bytes and filename:
+                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                return {
+                    "reply": f"{name}님의 진료확인서 발급이 완료되었습니다. 파일명: {filename}",
+                    "pdf_filename": filename,
+                    "pdf_data_base64": pdf_base64 # For the API to send to client
+                }
+            else: # Should ideally not happen
+                return {"reply": "진료확인서 PDF 생성 중 예상치 못한 오류가 발생했습니다."}
+
+        else:
+            return {"reply": f"알 수 없는 증명서 종류입니다: '{certificate_type}'. '처방전' 또는 '진료확인서' 중에서 선택해주세요."}
+
+    except MissingKoreanFontError:
+        # This error is specifically from the PDF generation utility.
+        print("MissingKoreanFontError caught in handle_certificate_request")
+        return {"reply": "증명서 PDF 생성에 필요한 한글 글꼴을 찾을 수 없습니다. 시스템 관리자에게 문의해주세요.", "status_code": 500}
+    except Exception as e:
+        # Catch any other unexpected errors during the process.
+        print(f"Error in handle_certificate_request for {name} ({rrn}), type {certificate_type}: {e}")
+        return {"error": "증명서 발급 처리 중 예기치 않은 오류가 발생했습니다.", "status_code": 500}
 
 def generate_chatbot_response(user_question: str, base64_image_data: str | None = None) -> dict:
     _func_args = locals()
@@ -123,7 +520,33 @@ def generate_chatbot_response(user_question: str, base64_image_data: str | None 
             return {"error": "챗봇으로부터 비어있는 응답을 받았습니다.", "details": "Empty content in response.", "status_code": 500}
 
         bot_response_text = candidate.content.parts[0].text
-        return {"reply": bot_response_text}
+
+        # Parse the JSON response from Gemini
+        try:
+            parsed_response = json.loads(bot_response_text)
+        except json.JSONDecodeError as e:
+            return {"error": "AI로부터 유효하지 않은 JSON 응답을 받았습니다.", "details": str(e), "status_code": 500}
+
+        intent = parsed_response.get("intent")
+        parameters = parsed_response.get("parameters", {})
+        user_query_from_response = parsed_response.get("user_query", user_question) # Fallback to original if not in response
+
+        if intent == "general":
+            reply = parsed_response.get("reply")
+            if reply:
+                return {"reply": reply}
+            else:
+                return {"error": "AI 응답에서 'reply' 필드를 찾을 수 없습니다 (intent=general).", "status_code": 500}
+        elif intent == "reception":
+            return handle_reception_request(parameters, user_query_from_response)
+        elif intent == "payment":
+            return handle_payment_request(parameters, user_query_from_response)
+        elif intent == "certificate":
+            return handle_certificate_request(parameters, user_query_from_response)
+        else:
+            return {"error": f"알 수 없거나 누락된 의도(intent) 값: {intent}", "status_code": 500}
 
     except Exception as e: # Catch errors during response processing
+        # Log the exception for more detailed debugging if possible
+        print(f"Error during response processing: {e}")
         return {"error": "챗봇 응답 처리 중 오류가 발생했습니다.", "details": str(e), "status_code": 500}

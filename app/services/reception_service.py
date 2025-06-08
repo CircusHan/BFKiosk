@@ -189,9 +189,54 @@ def handle_choose_symptom_action(symptom: str) -> dict:
     _func_args = locals()
     _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
     print(f"ENTERING: {_module_path}.handle_choose_symptom_action(args={{_func_args}})")
-    department = SYM_TO_DEPT.get(symptom, SYM_TO_DEPT["기타"]) # Default to "가정의학과" if symptom not in map
+    department = SYM_TO_DEPT.get(symptom, SYM_TO_DEPT.get("etc", "가정의학과")) # Default to "가정의학과" if symptom not in map
     ticket = new_ticket(department)
     return {
         "department": department,
         "ticket": ticket
     }
+
+DEFAULT_FIELDNAMES = [
+    "name", "rrn", "time", "department", "ticket_number",
+    "location", "doctor", "status", "prescription_names", "total_fee"
+]
+
+def add_new_patient_reception(name: str, rrn: str, department: str, ticket_number: str, initial_status: str = "Registered") -> bool:
+    """
+    Appends a new patient reception record to reservations.csv.
+    If the CSV doesn't exist, it creates it with headers.
+    """
+    _func_args = locals()
+    _module_path = sys.modules[__name__].__name__ if __name__ in sys.modules else __file__
+    print(f"ENTERING: {_module_path}.add_new_patient_reception(args={{_func_args}})")
+
+    file_exists = os.path.exists(RESV_CSV)
+    if not file_exists:
+        print(f"Info: {RESV_CSV} not found, will be created with headers.")
+
+    try:
+        with open(RESV_CSV, mode='a', newline='', encoding='utf-8') as csvfile:
+            # Use DEFAULT_FIELDNAMES consistently
+            writer = csv.DictWriter(csvfile, fieldnames=DEFAULT_FIELDNAMES)
+
+            if not file_exists or os.path.getsize(RESV_CSV) == 0:
+                writer.writeheader()
+
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            new_row = {
+                "name": name,
+                "rrn": rrn,
+                "time": current_time,
+                "department": department,
+                "ticket_number": ticket_number,
+                "location": "",  # Default empty
+                "doctor": "",    # Default empty
+                "status": initial_status,
+                "prescription_names": "", # Default empty
+                "total_fee": "0"          # Default 0
+            }
+            writer.writerow(new_row)
+        return True
+    except Exception as e:
+        print(f"Error adding new patient reception for RRN {rrn}: {e}")
+        return False
